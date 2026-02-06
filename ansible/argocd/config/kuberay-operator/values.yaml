@@ -1,0 +1,5 @@
+# KubeRay Operator configuration
+# Ray on Kubernetes operator for managing Ray clusters
+
+# Default values - using upstream defaults
+# Add custom configuration here as needed
