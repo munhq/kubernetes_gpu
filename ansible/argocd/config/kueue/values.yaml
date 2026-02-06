@@ -1,0 +1,43 @@
+# Kueue configuration for GPU batch inference workloads
+
+# Enable integrations
+integrations:
+  # Enable RayJob integration
+  frameworks:
+    - "kubeflow.org/mpijob"
+    - "ray.io/rayjob"
+    - "ray.io/raycluster"
+    - "jobset.x-k8s.io/jobset"
+    - "kubeflow.org/pytorchjob"
+    - "kubeflow.org/tfjob"
+    - "kubeflow.org/xgboostjob"
+
+# Controller configuration
+controller:
+  # Resource limits
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Webhook configuration
+webhookServer:
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# Enable feature gates
+featureGates:
+  # Enable priority and preemption
+  PriorityClass: true
+  # Enable fair sharing
+  FairSharing: true
+  # Enable lending/borrowing
+  LendingLimit: true

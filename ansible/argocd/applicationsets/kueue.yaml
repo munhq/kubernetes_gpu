@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kueue
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          - env: platform
+            namespace: kueue-system
+            project: platform
+            helmRepo: https://kubernetes-sigs.github.io/kueue
+            helmChart: kueue
+            helmVersion: v0.10.1
+  template:
+    metadata:
+      name: 'kueue'
+      namespace: argocd
+      labels:
+        app: kueue
+        environment: '{{ .env }}'
+    spec:
+      project: '{{ .project }}'
+      sources:
+        - repoURL: '{{ .helmRepo }}'
+          chart: '{{ .helmChart }}'
+          targetRevision: '{{ .helmVersion }}'
+          helm:
+            releaseName: kueue
+            valueFiles:
+              - $values/ansible/argocd/config/kueue/values.yaml
+        - repoURL: https://github.com/munhq/kubernetes_gpu.git
+          targetRevision: main
+          ref: values
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .namespace }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
