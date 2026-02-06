@@ -13,7 +13,7 @@ spec:
             project: platform
             helmRepo: oci://registry.k8s.io/kueue/charts
             helmChart: kueue
-            helmVersion: 0.10.1
+            helmVersion: 0.15.2
   template:
     metadata:
       name: 'kueue'
