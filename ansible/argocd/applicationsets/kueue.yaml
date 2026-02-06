@@ -11,9 +11,9 @@ spec:
           - env: platform
             namespace: kueue-system
             project: platform
-            helmRepo: https://kubernetes-sigs.github.io/kueue
+            helmRepo: oci://registry.k8s.io/kueue/charts
             helmChart: kueue
-            helmVersion: v0.10.1
+            helmVersion: 0.10.1
   template:
     metadata:
       name: 'kueue'
