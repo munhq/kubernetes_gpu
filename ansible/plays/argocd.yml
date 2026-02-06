@@ -14,12 +14,12 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
   vars:
-    manifests_dir: "{{ playbook_dir }}/../manifests"
+    argocd_dir: "{{ playbook_dir }}/../argocd"
 
   tasks:
     - name: Copy project manifests
       ansible.builtin.copy:
-        src: "{{ manifests_dir }}/projects/"
+        src: "{{ argocd_dir }}/projects/"
         dest: /tmp/argocd-projects/
         mode: '0644'
 
@@ -39,7 +39,7 @@
 
     - name: Copy ApplicationSet manifests
       ansible.builtin.copy:
-        src: "{{ manifests_dir }}/applicationsets/generated/"
+        src: "{{ argocd_dir }}/applicationsets/"
         dest: /tmp/argocd-applicationsets/
         mode: '0644'
 
