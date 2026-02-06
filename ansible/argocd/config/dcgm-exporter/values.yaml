@@ -1,0 +1,11 @@
+# NVIDIA DCGM Exporter configuration
+# Exports GPU metrics to Prometheus
+
+serviceMonitor:
+  enabled: true
+
+# Allow dcgm-exporter to run on nodes with GPU taints
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule

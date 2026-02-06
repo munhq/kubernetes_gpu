@@ -23,12 +23,17 @@ spec:
         environment: '{{ .env }}'
     spec:
       project: '{{ .project }}'
-      source:
-        repoURL: '{{ .helmRepo }}'
-        chart: '{{ .helmChart }}'
-        targetRevision: '{{ .helmVersion }}'
-        helm:
-          releaseName: kuberay-operator
+      sources:
+        - repoURL: '{{ .helmRepo }}'
+          chart: '{{ .helmChart }}'
+          targetRevision: '{{ .helmVersion }}'
+          helm:
+            releaseName: kuberay-operator
+            valueFiles:
+              - $values/ansible/argocd/config/kuberay-operator/values.yaml
+        - repoURL: https://github.com/munhq/kubernetes_gpu.git
+          targetRevision: main
+          ref: values
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{ .namespace }}'
