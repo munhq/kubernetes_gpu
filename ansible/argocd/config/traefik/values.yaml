@@ -1,0 +1,69 @@
+# Traefik Helm values
+# Ingress controller for routing external traffic
+
+# High availability with 3 replicas
+deployment:
+  replicas: 3
+
+# Use LoadBalancer service (MetalLB will assign IP)
+service:
+  type: LoadBalancer
+  annotations:
+    # external-dns will create DNS A records for these hostnames
+    external-dns.alpha.kubernetes.io/hostname: "example.org,api.example.org,rpc.example.org,staging.example.org,api-staging.example.org,rpc-staging.example.org,example.net,staging.example.net"
+
+# Ports
+ports:
+  web:
+    port: 80
+    exposedPort: 80
+  websecure:
+    port: 443
+    exposedPort: 443
+    # TLS enabled by default - certificates loaded from IngressRoute secrets
+
+# Global HTTP to HTTPS redirect (v37+ syntax)
+additionalArguments:
+  - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+  - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+
+# Enable dashboard (access via port-forward)
+ingressRoute:
+  dashboard:
+    enabled: true
+    matchRule: Host(`traefik.local`)
+    entryPoints: ["websecure"]
+
+# Persistent logs
+logs:
+  general:
+    level: INFO
+  access:
+    enabled: true
+
+# Prometheus metrics
+metrics:
+  prometheus:
+    enabled: true
+    addEntryPointsLabels: true
+    addServicesLabels: true
+
+# cert-manager handles certificates (no ACME resolver needed)
+
+# Resource limits
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Access logs and redirect are in additionalArguments above
+# additionalArguments:
+#   - "--accesslog=true"
+#   - "--accesslog.filepath=/var/log/traefik/access.log"
+
+# Global redirect to HTTPS
+globalArguments:
+  - "--global.sendanonymoususage=false"

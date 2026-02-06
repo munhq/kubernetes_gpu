@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kuberay-operator
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          - env: platform
+            namespace: kuberay-system
+            project: platform
+            helmRepo: https://ray-project.github.io/kuberay-helm
+            helmChart: kuberay-operator
+            helmVersion: 1.2.2
+  template:
+    metadata:
+      name: 'kuberay-operator'
+      namespace: argocd
+      labels:
+        app: kuberay-operator
+        environment: '{{ .env }}'
+    spec:
+      project: '{{ .project }}'
+      source:
+        repoURL: '{{ .helmRepo }}'
+        chart: '{{ .helmChart }}'
+        targetRevision: '{{ .helmVersion }}'
+        helm:
+          releaseName: kuberay-operator
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .namespace }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

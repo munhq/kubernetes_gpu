@@ -1,0 +1,5 @@
+apiVersion: v2
+name: metallb-resources
+description: MetalLB additional resources (IPAddressPool, L2Advertisement)
+type: application
+version: "0.1.0"

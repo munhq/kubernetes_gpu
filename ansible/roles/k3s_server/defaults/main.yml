@@ -1,0 +1,18 @@
+#SPDX-License-Identifier: MIT-0
+---
+# defaults file for k3s_server
+
+k3s_version: "v1.29.2+k3s1"
+k3s_config_dir: /etc/rancher/k3s
+k3s_data_dir: /var/lib/rancher/k3s
+
+k3s_disable:
+  - traefik
+  - servicelb
+  - local-storage
+
+cluster_name: kuberay-batch
+
+# Kubelet args for GPU workloads
+k3s_kubelet_args:
+  - "max-pods=250"

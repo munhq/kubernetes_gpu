@@ -1,0 +1,3 @@
+---
+# Netbird defaults
+# Setup key is defined in group_vars/k3s_server/vars.yml and group_vars/gpu_nodes/vars.yml

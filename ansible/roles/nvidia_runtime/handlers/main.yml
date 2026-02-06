@@ -1,0 +1,2 @@
+---
+# No handlers needed - NVIDIA runtime config is written before K3s starts

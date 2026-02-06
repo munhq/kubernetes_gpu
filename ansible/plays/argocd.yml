@@ -1,0 +1,77 @@
+---
+# ArgoCD - deploy projects and ApplicationSets.
+# Requires platform.yml to have run first (ArgoCD must be installed).
+#
+# Usage:
+#   ansible-playbook generate-applicationsets.yml   # generate locally first
+#   ansible-playbook argocd.yml                     # deploy to cluster
+
+- name: argocd.yml | Deploy projects and ApplicationSets
+  hosts: k3s_server
+  gather_facts: false
+
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+  vars:
+    manifests_dir: "{{ playbook_dir }}/../manifests"
+
+  tasks:
+    - name: Copy project manifests
+      ansible.builtin.copy:
+        src: "{{ manifests_dir }}/projects/"
+        dest: /tmp/argocd-projects/
+        mode: '0644'
+
+    - name: Apply AppProjects
+      ansible.builtin.command: kubectl apply -f /tmp/argocd-projects/
+      register: projects_result
+      changed_when: "'created' in projects_result.stdout or 'configured' in projects_result.stdout"
+
+    - name: Display project results
+      ansible.builtin.debug:
+        msg: "{{ projects_result.stdout_lines }}"
+
+    - name: Wait for projects
+      ansible.builtin.pause:
+        seconds: 3
+      when: projects_result.changed
+
+    - name: Copy ApplicationSet manifests
+      ansible.builtin.copy:
+        src: "{{ manifests_dir }}/applicationsets/generated/"
+        dest: /tmp/argocd-applicationsets/
+        mode: '0644'
+
+    - name: Apply ApplicationSets
+      ansible.builtin.command: kubectl apply -f /tmp/argocd-applicationsets/
+      register: appsets_result
+      changed_when: "'created' in appsets_result.stdout or 'configured' in appsets_result.stdout"
+
+    - name: Display results
+      ansible.builtin.debug:
+        msg: "{{ appsets_result.stdout_lines }}"
+
+    - name: Wait for Applications to sync
+      ansible.builtin.pause:
+        seconds: 10
+
+    - name: Show Application status
+      ansible.builtin.shell: |
+        kubectl get applications -n argocd \
+          -o custom-columns=NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status \
+          --no-headers
+      register: apps_status
+      changed_when: false
+
+    - name: Display Applications
+      ansible.builtin.debug:
+        msg: "{{ apps_status.stdout_lines }}"
+
+    - name: Clean up
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/argocd-projects
+        - /tmp/argocd-applicationsets

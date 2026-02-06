@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: dcgm-exporter
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          - env: infrastructure
+            namespace: monitoring
+            project: infrastructure
+            helmRepo: https://nvidia.github.io/dcgm-exporter/helm-charts
+            helmChart: dcgm-exporter
+            helmVersion: 3.6.1
+  template:
+    metadata:
+      name: 'dcgm-exporter'
+      namespace: argocd
+      labels:
+        app: dcgm-exporter
+        environment: '{{ .env }}'
+    spec:
+      project: '{{ .project }}'
+      source:
+        repoURL: '{{ .helmRepo }}'
+        chart: '{{ .helmChart }}'
+        targetRevision: '{{ .helmVersion }}'
+        helm:
+          releaseName: dcgm-exporter
+          values: |
+            serviceMonitor:
+              enabled: true
+            tolerations:
+              - key: nvidia.com/gpu
+                operator: Exists
+                effect: NoSchedule
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .namespace }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

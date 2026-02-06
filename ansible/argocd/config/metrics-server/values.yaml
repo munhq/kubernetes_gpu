@@ -1,0 +1,15 @@
+# Metrics Server configuration
+# Provides resource metrics API for kubectl top and HPA
+
+args:
+  - --kubelet-insecure-tls
+  - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+
+# Minimal resources
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi

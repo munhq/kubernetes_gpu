@@ -1,0 +1,17 @@
+# Sealed Secrets Helm values
+# Encrypt secrets for GitOps
+
+# Controller configuration
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+# Generate new keys on install
+# IMPORTANT: Backup the sealing key!
+# kubectl get secret -n kube-system sealed-secrets-key -o yaml > sealed-secrets-key-backup.yaml
+
+# Use defaults for encryption

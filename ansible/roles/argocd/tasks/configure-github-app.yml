@@ -1,0 +1,82 @@
+---
+# Configure ArgoCD to use GitHub App for private repository access
+# All tasks run on the k3s server where kubectl is configured
+
+- name: Create temporary file for GitHub App private key
+  ansible.builtin.copy:
+    content: "{{ argocd_github_app_private_key }}"
+    dest: /tmp/github-app-private-key.pem
+    mode: '0600'
+  no_log: true
+
+- name: Check if argocd CLI is installed
+  ansible.builtin.command: which argocd
+  register: argocd_cli_check
+  failed_when: false
+  changed_when: false
+
+- name: Install argocd CLI
+  ansible.builtin.shell: |
+    curl -sSL -o /tmp/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+    chmod +x /tmp/argocd
+    sudo mv /tmp/argocd /usr/local/bin/argocd
+  when: argocd_cli_check.rc != 0
+
+- name: Get ArgoCD admin password
+  ansible.builtin.shell: |
+    kubectl get secret argocd-initial-admin-secret \
+      -n argocd \
+      -o jsonpath='{.data.password}' | base64 -d
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: argocd_password_result
+  changed_when: false
+  no_log: true
+
+- name: Wait for ArgoCD server to be ready
+  ansible.builtin.command: |
+    kubectl wait --for=condition=available --timeout=600s
+    deployment/argocd-server -n argocd
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: false
+
+- name: Login to ArgoCD via NodePort
+  ansible.builtin.shell: |
+    echo y | argocd login localhost:{{ argocd_nodeport }} \
+      --username admin \
+      --password {{ argocd_password_result.stdout }} \
+      --insecure
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: false
+
+- name: Check if repository already exists
+  ansible.builtin.command: argocd repo list --output json
+  register: argocd_repos
+  changed_when: false
+
+- name: Add GitHub repository using GitHub App
+  ansible.builtin.command: |
+    argocd repo add https://github.com/munhq/kubernetes_gpu.git
+      --github-app-id {{ argocd_github_app_id }}
+      --github-app-installation-id {{ argocd_github_app_installation_id }}
+      --github-app-private-key-path /tmp/github-app-private-key.pem
+  when: "'k3s-gpu.git' not in argocd_repos.stdout"
+  register: repo_add_result
+
+- name: Verify repository was added
+  ansible.builtin.command: argocd repo list --output json
+  register: argocd_repos_verify
+  changed_when: false
+  failed_when: "'k3s-gpu.git' not in argocd_repos_verify.stdout"
+
+- name: Clean up temporary private key file
+  ansible.builtin.file:
+    path: /tmp/github-app-private-key.pem
+    state: absent
+  no_log: true
+
+- name: Display repository status
+  ansible.builtin.debug:
+    msg: "✅ ArgoCD repository https://github.com/munhq/kubernetes_gpu.git successfully configured using GitHub App"

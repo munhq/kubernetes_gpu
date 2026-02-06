@@ -1,0 +1,73 @@
+---
+# ArgoCD Bootstrap - Helm-based install (matches kubernetes-tf pattern)
+
+- name: Add ArgoCD Helm repository
+  ansible.builtin.command: >
+    helm repo add argo https://argoproj.github.io/argo-helm
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm repositories
+  ansible.builtin.command: helm repo update
+  changed_when: false
+
+- name: Create ArgoCD namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ argocd_namespace }}"
+
+- name: Check if ArgoCD is already installed
+  ansible.builtin.command: >
+    helm list -n {{ argocd_namespace }} -o json
+  register: argocd_installed
+  changed_when: false
+
+- name: Install ArgoCD via Helm
+  ansible.builtin.command: >
+    helm install argocd argo/argo-cd
+    --namespace {{ argocd_namespace }}
+    --version {{ argocd_helm_version }}
+    --set server.service.type=NodePort
+    --set server.service.nodePortHttps={{ argocd_nodeport }}
+    --set configs.params."server\.insecure"=true
+    --set dex.enabled=false
+    --wait
+    --timeout 10m
+  when: "'argocd' not in argocd_installed.stdout"
+  register: argocd_install
+  changed_when: true
+
+- name: Wait for ArgoCD server to be ready
+  ansible.builtin.command: >
+    kubectl wait --for=condition=available --timeout=600s
+    deployment/argocd-server -n {{ argocd_namespace }}
+  changed_when: false
+
+- name: Get ArgoCD admin password
+  ansible.builtin.command: >
+    kubectl get secret argocd-initial-admin-secret
+    -n {{ argocd_namespace }}
+    -o jsonpath="{.data.password}"
+  register: argocd_admin_password_b64
+  changed_when: false
+
+- name: Decode ArgoCD admin password
+  ansible.builtin.set_fact:
+    argocd_admin_password: "{{ argocd_admin_password_b64.stdout | b64decode }}"
+  no_log: true
+
+- name: Display ArgoCD access information
+  ansible.builtin.debug:
+    msg: |
+      ArgoCD installed successfully!
+      URL: https://{{ ansible_host }}:{{ argocd_nodeport }}
+      Username: admin
+      Password: {{ argocd_admin_password }}
+
+- name: Configure GitHub App for repository access
+  ansible.builtin.include_tasks: configure-github-app.yml
+  tags: configure-repo

@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: metrics-server
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          - env: infrastructure
+            namespace: kube-system
+            project: infrastructure
+            helmRepo: https://kubernetes-sigs.github.io/metrics-server/
+            helmChart: metrics-server
+            helmVersion: 3.12.2
+  template:
+    metadata:
+      name: 'metrics-server'
+      namespace: argocd
+      labels:
+        app: metrics-server
+        environment: '{{ .env }}'
+    spec:
+      project: '{{ .project }}'
+      source:
+        repoURL: '{{ .helmRepo }}'
+        chart: '{{ .helmChart }}'
+        targetRevision: '{{ .helmVersion }}'
+        helm:
+          releaseName: metrics-server
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .namespace }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

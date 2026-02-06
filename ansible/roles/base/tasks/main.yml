@@ -1,0 +1,138 @@
+---
+# Common role - applies infrastructure settings from inventory group_vars.
+# All values come from:
+#   group_vars/k3s_cluster.yml  (all nodes)
+#   group_vars/k3s_server.yml   (master only)
+#   group_vars/gpu_nodes.yml   (GPU workers only)
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+  when: timezone is defined and ansible_connection != "local"
+
+# ── System info ───────────────────────────────────────────────────────────────
+- name: Check disk space
+  ansible.builtin.shell: df -BM / | tail -1 | awk '{print $4}' | sed 's/M//'
+  register: disk_avail
+  changed_when: false
+
+- name: Display disk space
+  ansible.builtin.debug:
+    msg: "Disk space available: {{ disk_avail.stdout | trim }}MB"
+
+- name: Fail if low disk space
+  ansible.builtin.fail:
+    msg: >
+      Only {{ disk_avail.stdout | trim }}MB free on /.
+      Need at least {{ min_disk_space_mb }}MB for GPU container images.
+  when:
+    - disk_avail.stdout | trim | length > 0
+    - (disk_avail.stdout | trim | int) < (min_disk_space_mb | int)
+
+- name: Display system info
+  ansible.builtin.debug:
+    msg: |
+      Hostname: {{ ansible_hostname }}
+      OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+      Kernel: {{ ansible_kernel }}
+      CPU: {{ ansible_processor_vcpus }} vCPUs
+      RAM: {{ (ansible_memtotal_mb / 1024) | round(1) }} GB
+      Disk free: {{ (disk_avail.stdout | trim | int / 1024) | round(1) }} GB
+
+# ── Packages ──────────────────────────────────────────────────────────────────
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install common packages
+  ansible.builtin.apt:
+    name: "{{ packages_common }}"
+    state: present
+  when: packages_common | length > 0
+
+# ── Swap ──────────────────────────────────────────────────────────────────────
+- name: Disable swap
+  ansible.builtin.command: swapoff -a
+  changed_when: false
+
+- name: Remove swap from fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '\sswap\s'
+    state: absent
+
+# ── Kernel modules ────────────────────────────────────────────────────────────
+- name: Load kernel modules
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ kernel_modules }}"
+
+- name: Persist kernel modules
+  ansible.builtin.copy:
+    content: |
+      {% for mod in kernel_modules %}
+      {{ mod }}
+      {% endfor %}
+    dest: /etc/modules-load.d/k8s.conf
+    mode: "0644"
+  when: kernel_modules | length > 0
+
+# ── Sysctl ────────────────────────────────────────────────────────────────────
+- name: Build merged sysctl settings
+  ansible.builtin.set_fact:
+    merged_sysctl: >-
+      {{ sysctl_settings
+         | combine(sysctl_settings_server | default({}))
+         | combine(sysctl_settings_gpu | default({})) }}
+
+- name: Apply sysctl settings
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/99-kubernetes.conf
+    reload: true
+  loop: "{{ merged_sysctl | dict2items }}"
+
+# ── Ulimits ───────────────────────────────────────────────────────────────────
+- name: Set system-wide file descriptor and process limits
+  ansible.builtin.copy:
+    content: |
+      * soft nofile {{ ulimit_nofile }}
+      * hard nofile {{ ulimit_nofile }}
+      * soft memlock {{ ulimit_memlock }}
+      * hard memlock {{ ulimit_memlock }}
+      * soft nproc {{ ulimit_nproc }}
+      * hard nproc {{ ulimit_nproc }}
+    dest: /etc/security/limits.d/99-kubernetes.conf
+    mode: "0644"
+
+# ── Journald ──────────────────────────────────────────────────────────────────
+- name: Create journald config directory
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    mode: "0755"
+
+- name: Configure journald log limits
+  ansible.builtin.copy:
+    content: |
+      [Journal]
+      SystemMaxUse={{ journald_max_use }}
+      SystemMaxFileSize={{ journald_max_file_size }}
+      RateLimitIntervalSec=30s
+      RateLimitBurst=10000
+    dest: /etc/systemd/journald.conf.d/99-limits.conf
+    mode: "0644"
+  notify: restart journald
+
+# ── NTP ───────────────────────────────────────────────────────────────────────
+- name: Ensure time sync is running
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    state: started
+    enabled: true
+  failed_when: false
+
+

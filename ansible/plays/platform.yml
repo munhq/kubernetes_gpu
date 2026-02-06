@@ -1,0 +1,36 @@
+---
+# Platform - K3s cluster + GPU runtime + ArgoCD bootstrap.
+# Requires infrastructure.yml to have run first.
+#
+# Usage: ansible-playbook platform.yml
+
+- name: platform.yml | K3s server
+  hosts: k3s_server
+  gather_facts: true
+
+  roles:
+    - { role: k3s_server,  tags: ["k3s", "platform"] }
+
+- name: platform.yml | NVIDIA runtime (GPU nodes only - BEFORE K3s agent)
+  hosts: gpu_nodes
+  gather_facts: true
+
+  roles:
+    - { role: nvidia_runtime,  tags: ["nvidia", "platform"] }
+
+- name: platform.yml | K3s agents
+  hosts: gpu_nodes
+  gather_facts: true
+
+  roles:
+    - { role: k3s_agent,  tags: ["k3s", "platform"] }
+
+- name: platform.yml | ArgoCD
+  hosts: k3s_server
+  gather_facts: false
+
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+  roles:
+    - { role: argocd,  tags: ["argocd", "platform"] }

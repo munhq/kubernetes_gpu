@@ -1,0 +1,8 @@
+#SPDX-License-Identifier: MIT-0
+---
+# defaults file for nvidia_runtime
+
+nvidia_container_toolkit_version: "1.14.6"
+
+# RunPod has NVIDIA drivers pre-installed
+nvidia_driver_preinstalled: true

@@ -1,0 +1,7 @@
+---
+argocd_namespace: argocd
+argocd_helm_version: "9.4.1"
+argocd_nodeport: 30443
+argocd_repo_url: ""
+argocd_repo_revision: main
+argocd_apps_path: argocd/apps

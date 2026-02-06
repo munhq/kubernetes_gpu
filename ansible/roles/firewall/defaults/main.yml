@@ -1,0 +1,3 @@
+---
+# Firewall defaults
+firewall_reset: false  # Set to true to reset UFW to defaults before applying rules
