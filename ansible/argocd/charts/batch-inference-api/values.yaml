@@ -5,6 +5,9 @@ image:
   pullPolicy: Always
   tag: "latest"
 
+imagePullSecrets:
+  - name: ghcr-secret
+
 service:
   type: NodePort
   port: 8000
