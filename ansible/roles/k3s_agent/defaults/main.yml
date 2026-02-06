@@ -1,0 +1,5 @@
+#SPDX-License-Identifier: MIT-0
+---
+# defaults file for k3s_agent
+
+k3s_version: "v1.29.2+k3s1"

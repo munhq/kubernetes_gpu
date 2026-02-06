@@ -1,0 +1,129 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for k3s_agent
+
+- name: Get Netbird VPN IP
+  ansible.builtin.shell: |
+    netbird status | grep -oP 'NetBird IP:\s*\K[\d.]+'
+  register: vpn_ip_raw
+  changed_when: false
+  when: netbird_vpn_ip is not defined
+
+- name: Store Netbird VPN IP as fact
+  ansible.builtin.set_fact:
+    netbird_vpn_ip: "{{ vpn_ip_raw.stdout | trim }}"
+    cacheable: true
+  when: netbird_vpn_ip is not defined
+
+- name: Get K3s server URL from server host
+  ansible.builtin.set_fact:
+    k3s_server_url: "{{ hostvars[groups['k3s_server'][0]]['k3s_server_url'] }}"
+    k3s_token: "{{ hostvars[groups['k3s_server'][0]]['k3s_token'] }}"
+
+- name: Check if K3s agent is installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s
+  register: k3s_binary
+
+- name: Download K3s install script
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /tmp/k3s-install.sh
+    mode: "0755"
+
+- name: Install K3s agent with node-ip argument
+  ansible.builtin.shell: |
+    INSTALL_K3S_VERSION={{ k3s_version }} \
+    K3S_URL={{ k3s_server_url }} \
+    K3S_TOKEN={{ k3s_token }} \
+    INSTALL_K3S_EXEC="agent --node-name={{ inventory_hostname }} --node-ip={{ netbird_vpn_ip }}" \
+    /tmp/k3s-install.sh
+  register: k3s_agent_install
+  changed_when: "'No change detected' not in k3s_agent_install.stderr"
+
+- name: Ensure K3s agent service is enabled and started
+  ansible.builtin.systemd:
+    name: k3s-agent
+    enabled: true
+    state: started
+  when: k3s_agent_install is changed
+
+- name: Wait for CNI config to be created
+  ansible.builtin.wait_for:
+    path: /var/lib/rancher/k3s/agent/etc/cni/net.d/10-flannel.conflist
+    timeout: 60
+
+- name: Ensure /etc/cni/net.d directory exists
+  ansible.builtin.file:
+    path: /etc/cni/net.d
+    state: directory
+    mode: "0755"
+
+- name: Copy CNI config to /etc/cni/net.d for kubelet
+  ansible.builtin.copy:
+    src: /var/lib/rancher/k3s/agent/etc/cni/net.d/10-flannel.conflist
+    dest: /etc/cni/net.d/10-flannel.conflist
+    remote_src: true
+    mode: "0644"
+  register: cni_config_copy
+
+- name: Restart K3s agent if CNI config was copied
+  ansible.builtin.systemd:
+    name: k3s-agent
+    state: restarted
+  when: cni_config_copy is changed
+
+- name: Wait for K3s agent service to become active
+  ansible.builtin.systemd:
+    name: k3s-agent
+    state: started
+  register: k3s_agent_service
+  until: k3s_agent_service.status.ActiveState == "active"
+  retries: 30
+  delay: 10
+
+- name: Wait for node to register with server
+  ansible.builtin.command: >
+    kubectl get node {{ inventory_hostname }}
+  delegate_to: "{{ groups['k3s_server'][0] }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: node_check
+  until: node_check.rc == 0
+  retries: 20
+  delay: 5
+  changed_when: false
+
+- name: Apply node labels (from server)
+  ansible.builtin.command: >
+    kubectl label node {{ inventory_hostname }}
+    {{ item.key }}={{ item.value }}
+    --overwrite
+  delegate_to: "{{ groups['k3s_server'][0] }}"
+  loop: "{{ k3s_node_labels | default({}) | dict2items }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+  when: k3s_node_labels is defined
+
+- name: Apply node taints (from server)
+  ansible.builtin.command: >
+    kubectl taint node {{ inventory_hostname }}
+    {{ item }}
+    --overwrite
+  delegate_to: "{{ groups['k3s_server'][0] }}"
+  loop: "{{ k3s_node_taints | default([]) }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+  failed_when: false
+  when: k3s_node_taints is defined
+
+- name: Display agent info
+  ansible.builtin.debug:
+    msg: |
+      K3s Agent installed successfully!
+      Connected to: {{ k3s_server_url }}
+      Node name: {{ inventory_hostname }}
+      Node labels: {{ k3s_node_labels | default({}) }}
+      Node taints: {{ k3s_node_taints | default([]) }}

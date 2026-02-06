@@ -1,0 +1,8 @@
+---
+# Master playbook - runs everything in order.
+#
+# Usage: ansible-playbook all.yml
+
+- import_playbook: infrastructure.yml
+- import_playbook: platform.yml
+- import_playbook: argocd.yml

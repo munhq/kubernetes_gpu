@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: monitoring
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          - env: infrastructure
+            namespace: monitoring
+            project: infrastructure
+            helmRepo: https://prometheus-community.github.io/helm-charts
+            helmChart: kube-prometheus-stack
+            helmVersion: 67.9.0
+  template:
+    metadata:
+      name: 'monitoring'
+      namespace: argocd
+      labels:
+        app: kube-prometheus-stack
+        environment: '{{ .env }}'
+    spec:
+      project: '{{ .project }}'
+      source:
+        repoURL: '{{ .helmRepo }}'
+        chart: '{{ .helmChart }}'
+        targetRevision: '{{ .helmVersion }}'
+        helm:
+          releaseName: prometheus
+          values: |
+            grafana:
+              enabled: true
+              service:
+                type: NodePort
+                nodePort: 30030
+              adminPassword: admin
+            prometheus:
+              prometheusSpec:
+                retention: 15d
+                storageSpec:
+                  volumeClaimTemplate:
+                    spec:
+                      accessModes: ["ReadWriteOnce"]
+                      resources:
+                        requests:
+                          storage: 50Gi
+            nodeExporter:
+              enabled: true
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .namespace }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

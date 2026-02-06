@@ -1,0 +1,26 @@
+---
+# Infrastructure - system hardening, networking, firewall.
+# Sets up bare-metal prerequisites on all nodes before K8s.
+#
+# Usage: ansible-playbook infrastructure.yml
+
+- name: infrastructure.yml | Base setup (all nodes)
+  hosts: all
+  gather_facts: true
+
+  roles:
+    - { role: base,  tags: ["base", "infrastructure"] }
+
+- name: infrastructure.yml | Netbird VPN (all nodes)
+  hosts: all
+  gather_facts: true
+
+  roles:
+    - { role: netbird,  tags: ["netbird", "infrastructure"] }
+
+- name: infrastructure.yml | Firewall (all nodes)
+  hosts: all
+  gather_facts: true
+
+  roles:
+    - { role: firewall,  tags: ["firewall", "infrastructure"] }

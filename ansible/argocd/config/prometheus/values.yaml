@@ -1,0 +1,97 @@
+# Prometheus Stack Helm values
+# Monitoring with Prometheus, Grafana, AlertManager
+
+# Grafana configuration
+grafana:
+  enabled: true
+  adminPassword: admin  # TODO: Change this password!
+
+  # Persist Grafana dashboards
+  persistence:
+    enabled: true
+    size: 10Gi
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # Pre-installed dashboards
+  defaultDashboardsEnabled: true
+
+# Prometheus configuration
+prometheus:
+  prometheusSpec:
+    # Retention period
+    retention: 30d
+
+    # Storage
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+
+    # Resource limits
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+
+    # Service monitors - automatically discover services
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+
+# AlertManager configuration
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+# Node exporter for host metrics
+nodeExporter:
+  enabled: true
+
+# Kube-state-metrics for Kubernetes metrics
+kubeStateMetrics:
+  enabled: true
+
+# Default service monitors
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: false  # K3s doesn't expose etcd metrics
+    general: true
+    k8s: true
+    kubeApiserver: true
+    kubeApiserverAvailability: true
+    kubeApiserverSlos: true
+    kubelet: true
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubernetesApps: true
+    kubernetesResources: true
+    kubernetesStorage: true
+    kubernetesSystem: true
+    kubeScheduler: false  # K3s doesn't expose scheduler metrics
+    kubeStateMetrics: true
+    network: true
+    node: true
+    prometheus: true
+    prometheusOperator: true

@@ -1,0 +1,14 @@
+---
+# Fallback defaults if group_vars don't define these.
+# In practice, group_vars should always provide them.
+
+timezone: UTC
+packages_common: []
+kernel_modules: []
+sysctl_settings: {}
+min_disk_space_mb: 5120
+ulimit_nofile: 65535
+ulimit_nproc: 65535
+ulimit_memlock: 65536
+journald_max_use: "1G"
+journald_max_file_size: "128M"

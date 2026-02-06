@@ -1,0 +1,94 @@
+---
+# Firewall - UFW configuration for K3s cluster
+# Secures public-facing ports, K8s traffic goes through Netbird VPN
+
+- name: Install UFW
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+    update_cache: true
+
+- name: Reset UFW to defaults
+  community.general.ufw:
+    state: reset
+  when: firewall_reset | default(false)
+
+- name: Set UFW default policies
+  community.general.ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: 'incoming', policy: 'deny' }
+    - { direction: 'outgoing', policy: 'allow' }
+
+# ── SSH ──────────────────────────────────────────────────────────────────────
+- name: Allow SSH (prevent lockout)
+  community.general.ufw:
+    rule: allow
+    port: '22'
+    proto: tcp
+    comment: 'SSH access'
+
+# ── Netbird VPN ──────────────────────────────────────────────────────────────
+- name: Allow Netbird UDP (WireGuard)
+  community.general.ufw:
+    rule: allow
+    port: '51820'
+    proto: udp
+    comment: 'Netbird VPN'
+
+- name: Allow Netbird STUN/TURN
+  community.general.ufw:
+    rule: allow
+    port: '3478'
+    proto: udp
+    comment: 'Netbird STUN'
+
+# ── Public Web Services (k3s_server only) ────────────────────────────────────
+- name: Allow HTTP (k3s_server only)
+  community.general.ufw:
+    rule: allow
+    port: '80'
+    proto: tcp
+    comment: 'HTTP (redirect to HTTPS)'
+  when: "'k3s_server' in group_names"
+
+- name: Allow HTTPS (k3s_server only)
+  community.general.ufw:
+    rule: allow
+    port: '443'
+    proto: tcp
+    comment: 'HTTPS ingress'
+  when: "'k3s_server' in group_names"
+
+# ── K8s Internal (DENY from public, allow from Netbird VPN) ─────────────────
+- name: Deny K8s API from public internet
+  community.general.ufw:
+    rule: deny
+    port: '6443'
+    proto: tcp
+    comment: 'K8s API - VPN only'
+
+- name: Deny kubelet from public internet
+  community.general.ufw:
+    rule: deny
+    port: '10250'
+    proto: tcp
+    comment: 'Kubelet - VPN only'
+
+# NOTE: K8s traffic (6443, 10250, 2379-2380, 10251, 10252) goes through Netbird VPN
+# UFW doesn't block traffic on VPN interfaces, so no explicit allow rules needed
+
+# ── Enable UFW ───────────────────────────────────────────────────────────────
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+
+- name: Display UFW status
+  ansible.builtin.command: ufw status verbose
+  register: ufw_status
+  changed_when: false
+
+- name: Show firewall rules
+  ansible.builtin.debug:
+    msg: "{{ ufw_status.stdout_lines }}"

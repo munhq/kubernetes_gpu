@@ -1,0 +1,86 @@
+---
+# Netbird VPN installation and configuration
+
+- name: Add Netbird GPG key
+  ansible.builtin.shell: |
+    curl -fsSL https://pkgs.netbird.io/debian/public.key | gpg --dearmor -o /usr/share/keyrings/netbird-archive-keyring.gpg
+  args:
+    creates: /usr/share/keyrings/netbird-archive-keyring.gpg
+
+- name: Add Netbird repository
+  ansible.builtin.copy:
+    content: |
+      deb [signed-by=/usr/share/keyrings/netbird-archive-keyring.gpg] https://pkgs.netbird.io/debian stable main
+    dest: /etc/apt/sources.list.d/netbird.list
+    mode: "0644"
+  register: netbird_repo
+
+- name: Update apt cache after adding Netbird repo
+  ansible.builtin.apt:
+    update_cache: true
+  when: netbird_repo.changed
+
+- name: Install Netbird
+  ansible.builtin.apt:
+    name: netbird
+    state: present
+
+- name: Check if already connected to Netbird
+  ansible.builtin.command: netbird status
+  register: netbird_status_check
+  changed_when: false
+  failed_when: false
+
+- name: Connect to Netbird network
+  ansible.builtin.command: "netbird up --setup-key {{ netbird_setup_key }}"
+  when: netbird_status_check.rc != 0 or 'Connected' not in netbird_status_check.stdout
+  register: netbird_connect
+  changed_when: true
+
+- name: Enable Netbird service
+  ansible.builtin.systemd:
+    name: netbird
+    enabled: true
+    state: started
+
+- name: Create systemd override directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/netbird.service.d
+    state: directory
+    mode: "0755"
+
+- name: Configure systemd restart policy
+  ansible.builtin.copy:
+    content: |
+      [Service]
+      Restart=always
+      RestartSec=5
+    dest: /etc/systemd/system/netbird.service.d/restart.conf
+    mode: "0644"
+  notify: reload systemd
+
+- name: Wait for Netbird connection
+  ansible.builtin.command: netbird status
+  register: netbird_status
+  until: "'Connected' in netbird_status.stdout"
+  retries: 30
+  delay: 2
+  changed_when: false
+
+- name: Get Netbird VPN IP
+  ansible.builtin.shell: |
+    netbird status | grep -oP 'NetBird IP:\s*\K[\d.]+'
+  register: vpn_ip_raw
+  changed_when: false
+
+- name: Store Netbird VPN IP as fact
+  ansible.builtin.set_fact:
+    netbird_vpn_ip: "{{ vpn_ip_raw.stdout | trim }}"
+    cacheable: true
+
+- name: Display Netbird info
+  ansible.builtin.debug:
+    msg: |
+      Netbird connected!
+      VPN IP: {{ netbird_vpn_ip }}
+      Status: {{ netbird_status.stdout_lines[0:3] | join('\n      ') }}

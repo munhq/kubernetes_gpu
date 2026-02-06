@@ -1,0 +1,135 @@
+---
+# NVIDIA Runtime - auto-install drivers + container toolkit
+
+- name: Check if NVIDIA GPU present
+  ansible.builtin.shell: lspci | grep -i nvidia
+  register: nvidia_gpu
+  changed_when: false
+  failed_when: false
+
+- name: Check if NVIDIA driver installed
+  ansible.builtin.command: nvidia-smi
+  register: nvidia_smi
+  changed_when: false
+  failed_when: false
+
+- name: Install NVIDIA drivers (Ubuntu)
+  when:
+    - nvidia_gpu.rc == 0
+    - nvidia_smi.rc != 0
+    - ansible_distribution == "Ubuntu"
+  block:
+    - name: Add universe repository
+      ansible.builtin.apt_repository:
+        repo: "{{ item }}"
+        state: present
+      loop:
+        - "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }} universe"
+        - "deb http://archive.ubuntu.com/ubuntu {{ ansible_distribution_release }}-updates universe"
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Auto-install NVIDIA drivers
+      ansible.builtin.command: ubuntu-drivers autoinstall
+      changed_when: true
+      register: driver_install
+
+    - name: Display driver installation result
+      ansible.builtin.debug:
+        msg: "NVIDIA drivers installed. Reboot may be required."
+
+- name: Verify NVIDIA driver after installation
+  ansible.builtin.command: nvidia-smi
+  register: nvidia_smi_verify
+  changed_when: false
+  failed_when: false
+
+- name: Fail if no GPU or driver installation failed
+  ansible.builtin.fail:
+    msg: "NVIDIA GPU found but driver installation failed. Please install manually or reboot if just installed."
+  when:
+    - nvidia_gpu.rc == 0
+    - nvidia_smi_verify.rc != 0
+
+- name: Display GPU info
+  ansible.builtin.debug:
+    msg: "{{ nvidia_smi_verify.stdout_lines[:5] }}"
+  when: nvidia_smi_verify.rc == 0
+
+- name: Add NVIDIA Container Toolkit GPG key
+  ansible.builtin.shell: |
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+  args:
+    creates: /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+
+- name: Map architecture for repo (x86_64 -> amd64)
+  ansible.builtin.set_fact:
+    repo_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}"
+
+- name: Add NVIDIA Container Toolkit repository
+  ansible.builtin.copy:
+    content: |
+      deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://nvidia.github.io/libnvidia-container/stable/deb/{{ repo_arch }} /
+    dest: /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    mode: "0644"
+
+- name: Install NVIDIA Container Toolkit
+  ansible.builtin.apt:
+    name: nvidia-container-toolkit
+    state: present
+    update_cache: true
+
+- name: Create K3s containerd config directory
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s/agent/etc/containerd
+    state: directory
+    mode: "0755"
+
+- name: Configure K3s to use NVIDIA runtime
+  ansible.builtin.copy:
+    content: |
+      version = 2
+
+      [plugins."io.containerd.grpc.v1.cri".containerd]
+        default_runtime_name = "nvidia"
+
+      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.nvidia]
+        privileged_without_host_devices = false
+        runtime_engine = ""
+        runtime_root = ""
+        runtime_type = "io.containerd.runc.v2"
+
+      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.nvidia.options]
+        BinaryName = "/usr/bin/nvidia-container-runtime"
+        SystemdCgroup = true
+    dest: /var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl
+    mode: "0644"
+
+- name: Verify nvidia-container-runtime
+  ansible.builtin.command: nvidia-container-runtime --version
+  register: nvidia_runtime_version
+  changed_when: false
+
+- name: Display runtime version
+  ansible.builtin.debug:
+    msg: "{{ nvidia_runtime_version.stdout }}"
+
+# ── NVIDIA Persistence Mode ──────────────────────────────────────────────────
+- name: Enable NVIDIA persistence mode
+  ansible.builtin.command: nvidia-smi -pm 1
+  when: nvidia_persistence_mode | default(true)
+  changed_when: false
+  failed_when: false
+
+- name: Display GPU info
+  ansible.builtin.shell: nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
+  register: gpu_info
+  changed_when: false
+  failed_when: false
+
+- name: Show GPU details
+  ansible.builtin.debug:
+    msg: "GPUs: {{ gpu_info.stdout_lines }}"
+  when: gpu_info is defined and gpu_info.stdout_lines is defined

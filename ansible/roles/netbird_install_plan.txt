@@ -1,0 +1,13 @@
+Netbird Installation Role Plan:
+
+1. Install Netbird package
+2. Configure with setup key
+3. Start netbird service
+4. Get assigned VPN IP (from `netbird status`)
+5. Store VPN IP as ansible fact
+6. For utility-server: export VPN IP for k3s_agent nodes to use
+
+K3s will then use:
+- k3s_server_url: "https://{{ netbird_vpn_ip }}:6443"
+
+This way all K3s traffic goes over encrypted Netbird VPN.

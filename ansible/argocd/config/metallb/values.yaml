@@ -1,0 +1,8 @@
+# MetalLB configuration values
+# Used by both remote chart and config chart
+
+# For config chart templates (metallb-resources)
+ipAddress: "142.132.193.247/32"  # Hetzner server public IP
+
+# For remote chart (metallb)
+# Add any metallb chart values here if needed
