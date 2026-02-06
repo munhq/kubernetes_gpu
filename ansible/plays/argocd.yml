@@ -37,6 +37,26 @@
         seconds: 3
       when: projects_result.changed
 
+    - name: Create GHCR pull secret for batch-api
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: ghcr-secret
+            namespace: default
+          type: kubernetes.io/dockerconfigjson
+          data:
+            .dockerconfigjson: "{{ dockerconfig | to_json | b64encode }}"
+      vars:
+        dockerconfig:
+          auths:
+            ghcr.io:
+              username: munhq
+              password: "{{ vault_ghcr_pull_token }}"
+              auth: "{{ ('munhq:' + vault_ghcr_pull_token) | b64encode }}"
+
     - name: Copy ApplicationSet manifests
       ansible.builtin.copy:
         src: "{{ argocd_dir }}/applicationsets/"
