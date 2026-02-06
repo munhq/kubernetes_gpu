@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: batch-inference
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          - env: platform
+            namespace: default
+            project: platform
+  template:
+    metadata:
+      name: 'batch-inference'
+      namespace: argocd
+      labels:
+        app: batch-inference
+        environment: '{{ .env }}'
+    spec:
+      project: '{{ .project }}'
+      sources:
+        - repoURL: https://github.com/munhq/kubernetes_gpu.git
+          targetRevision: main
+          path: manifests
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .namespace }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
