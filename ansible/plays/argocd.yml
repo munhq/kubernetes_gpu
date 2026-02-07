@@ -57,20 +57,8 @@
               password: "{{ vault_ghcr_pull_token }}"
               auth: "{{ ('munhq:' + vault_ghcr_pull_token) | b64encode }}"
 
-    - name: Copy ApplicationSet manifests
-      ansible.builtin.copy:
-        src: "{{ argocd_dir }}/applicationsets/"
-        dest: /tmp/argocd-applicationsets/
-        mode: '0644'
-
-    - name: Apply ApplicationSets
-      ansible.builtin.command: kubectl apply -f /tmp/argocd-applicationsets/
-      register: appsets_result
-      changed_when: "'created' in appsets_result.stdout or 'configured' in appsets_result.stdout"
-
-    - name: Display results
-      ansible.builtin.debug:
-        msg: "{{ appsets_result.stdout_lines }}"
+    # ApplicationSets are now auto-synced via bootstrap app in ArgoCD role
+    # The bootstrap app watches argocd/applicationsets/ in git and applies them automatically
 
     - name: Wait for Applications to sync
       ansible.builtin.pause:
@@ -90,8 +78,5 @@
 
     - name: Clean up
       ansible.builtin.file:
-        path: "{{ item }}"
+        path: /tmp/argocd-projects
         state: absent
-      loop:
-        - /tmp/argocd-projects
-        - /tmp/argocd-applicationsets
