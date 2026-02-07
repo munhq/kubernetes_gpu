@@ -67,6 +67,27 @@
     mode: "0644"
   register: cni_config_copy
 
+- name: Ensure /opt/cni/bin directory exists
+  ansible.builtin.file:
+    path: /opt/cni/bin
+    state: directory
+    mode: "0755"
+
+- name: Find K3s CNI plugins directory
+  ansible.builtin.find:
+    paths: /var/lib/rancher/k3s/data
+    patterns: 'bin'
+    file_type: directory
+    recurse: true
+    depth: 2
+  register: cni_bin_dirs
+
+- name: Symlink CNI plugins to /opt/cni/bin
+  ansible.builtin.shell: |
+    ln -sf {{ cni_bin_dirs.files[0].path }}/* /opt/cni/bin/
+  when: cni_bin_dirs.files | length > 0
+  changed_when: true
+
 - name: Restart K3s agent if CNI config was copied
   ansible.builtin.systemd:
     name: k3s-agent
