@@ -22,13 +22,13 @@ resources:
     cpu: 100m
     memory: 128Mi
 
-# Override affinity to use NFD's actual label format
+# Override affinity - NFD creates nvidia.com/gpu.present for any NVIDIA GPU
 affinity:
   nodeAffinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
         - matchExpressions:
-            - key: feature.node.kubernetes.io/pci-0300_10de.present
+            - key: nvidia.com/gpu.present
               operator: In
               values:
                 - "true"
