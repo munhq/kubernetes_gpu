@@ -72,6 +72,26 @@
   ansible.builtin.include_tasks: configure-github-app.yml
   tags: configure-repo
 
+- name: Create GHCR pull secret for GPU workloads
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: ghcr-secret
+        namespace: gpu-workloads
+      type: kubernetes.io/dockerconfigjson
+      data:
+        .dockerconfigjson: "{{ dockerconfig | to_json | b64encode }}"
+  vars:
+    dockerconfig:
+      auths:
+        ghcr.io:
+          username: munhq
+          password: "{{ vault_ghcr_pull_token }}"
+          auth: "{{ ('munhq:' + vault_ghcr_pull_token) | b64encode }}"
+
 - name: Apply ApplicationSets bootstrap (auto-syncs from git)
   kubernetes.core.k8s:
     state: present
