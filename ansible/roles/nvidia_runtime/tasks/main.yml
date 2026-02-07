@@ -116,6 +116,18 @@
   ansible.builtin.debug:
     msg: "{{ nvidia_runtime_version.stdout }}"
 
+- name: Configure containerd with nvidia-ctk
+  ansible.builtin.command: nvidia-ctk runtime configure --runtime=containerd --set-as-default
+  register: nvidia_ctk_config
+  changed_when: "'Wrote updated config' in nvidia_ctk_config.stdout"
+  failed_when: false
+
+- name: Restart containerd if configuration changed
+  ansible.builtin.systemd:
+    name: containerd
+    state: restarted
+  when: nvidia_ctk_config.changed
+
 # ── NVIDIA Persistence Mode ──────────────────────────────────────────────────
 - name: Enable NVIDIA persistence mode
   ansible.builtin.command: nvidia-smi -pm 1
