@@ -21,3 +21,6 @@ resources:
   requests:
     cpu: 100m
     memory: 128Mi
+
+# Remove PCI device affinity (we don't have NFD)
+affinity: {}
