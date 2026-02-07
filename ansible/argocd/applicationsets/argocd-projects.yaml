@@ -13,7 +13,7 @@ spec:
           - path: "ansible/argocd/projects/*.yaml"
   template:
     metadata:
-      name: 'project-{{ .path.basenameNormalized }}'
+      name: 'project-{{ .path.basename | replace ".yaml" "" }}'
       namespace: argocd
     spec:
       project: default
