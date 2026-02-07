@@ -81,31 +81,30 @@
     state: present
     update_cache: true
 
-- name: Create K3s containerd config directory
-  ansible.builtin.file:
-    path: /var/lib/rancher/k3s/agent/etc/containerd
-    state: directory
-    mode: "0755"
-
-- name: Configure K3s to use NVIDIA runtime
+- name: Create K3s containerd config template with NVIDIA + CNI
   ansible.builtin.copy:
     content: |
-      version = 2
+      version = 3
 
-      [plugins."io.containerd.grpc.v1.cri".containerd]
+      [plugins.'io.containerd.cri.v1.runtime'.cni]
+        bin_dirs = ["/var/lib/rancher/k3s/data/cni"]
+        conf_dir = "/var/lib/rancher/k3s/agent/etc/cni/net.d"
+
+      [plugins.'io.containerd.cri.v1.runtime'.containerd]
         default_runtime_name = "nvidia"
 
-      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.nvidia]
+      [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.nvidia]
         privileged_without_host_devices = false
         runtime_engine = ""
         runtime_root = ""
         runtime_type = "io.containerd.runc.v2"
 
-      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.nvidia.options]
+      [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.nvidia.options]
         BinaryName = "/usr/bin/nvidia-container-runtime"
         SystemdCgroup = true
     dest: /var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl
     mode: "0644"
+  register: containerd_template
 
 - name: Verify nvidia-container-runtime
   ansible.builtin.command: nvidia-container-runtime --version
@@ -116,17 +115,12 @@
   ansible.builtin.debug:
     msg: "{{ nvidia_runtime_version.stdout }}"
 
-- name: Configure containerd with nvidia-ctk
-  ansible.builtin.command: nvidia-ctk runtime configure --runtime=containerd --set-as-default
-  register: nvidia_ctk_config
-  changed_when: "'Wrote updated config' in nvidia_ctk_config.stdout"
-  failed_when: false
-
-- name: Restart containerd if configuration changed
+- name: Restart k3s-agent if containerd template changed
   ansible.builtin.systemd:
-    name: containerd
+    name: k3s-agent
     state: restarted
-  when: nvidia_ctk_config.changed
+  when: containerd_template is changed
+  failed_when: false
 
 # ── NVIDIA Persistence Mode ──────────────────────────────────────────────────
 - name: Enable NVIDIA persistence mode

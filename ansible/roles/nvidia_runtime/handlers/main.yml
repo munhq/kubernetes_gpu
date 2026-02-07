@@ -1,2 +1,8 @@
 ---
-# No handlers needed - NVIDIA runtime config is written before K3s starts
+# handlers file for nvidia_runtime
+
+- name: Restart k3s-agent
+  ansible.builtin.systemd:
+    name: k3s-agent
+    state: restarted
+  when: "'k3s-agent' in ansible_facts.services"
