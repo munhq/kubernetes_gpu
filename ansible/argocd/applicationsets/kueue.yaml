@@ -8,9 +8,9 @@ spec:
   generators:
     - list:
         elements:
-          - env: platform
-            namespace: kueue-system
-            project: platform
+          - env: gpu
+            namespace: gpu-workloads
+            project: gpu
             helmRepo: oci://registry.k8s.io/kueue/charts
             helmChart: kueue
             helmVersion: 0.15.2
