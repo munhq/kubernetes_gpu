@@ -8,9 +8,9 @@ spec:
   generators:
     - list:
         elements:
-          - env: platform
-            namespace: default
-            project: platform
+          - env: gpu
+            namespace: gpu-workloads
+            project: gpu
   template:
     metadata:
       name: 'batch-api'

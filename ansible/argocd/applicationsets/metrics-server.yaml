@@ -9,7 +9,7 @@ spec:
     - list:
         elements:
           - env: infrastructure
-            namespace: kube-system
+            namespace: monitoring
             project: infrastructure
             helmRepo: https://kubernetes-sigs.github.io/metrics-server/
             helmChart: metrics-server

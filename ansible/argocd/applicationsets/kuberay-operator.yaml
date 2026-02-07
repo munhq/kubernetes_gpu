@@ -8,9 +8,9 @@ spec:
   generators:
     - list:
         elements:
-          - env: platform
-            namespace: kuberay-system
-            project: platform
+          - env: gpu
+            namespace: gpu-workloads
+            project: gpu
             helmRepo: https://ray-project.github.io/kuberay-helm
             helmChart: kuberay-operator
             helmVersion: 1.2.2
