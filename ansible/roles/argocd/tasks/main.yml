@@ -72,6 +72,15 @@
   ansible.builtin.include_tasks: configure-github-app.yml
   tags: configure-repo
 
+- name: Create gpu-workloads namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: gpu-workloads
+
 - name: Create GHCR pull secret for GPU workloads
   kubernetes.core.k8s:
     state: present
