@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: batch-inference
+  name: raycluster
   namespace: argocd
 spec:
   goTemplate: true
@@ -11,19 +11,20 @@ spec:
           - env: gpu
             namespace: gpu-workloads
             project: gpu
+            clusterName: raycluster-batch-inference
   template:
     metadata:
-      name: 'batch-inference'
+      name: 'raycluster'
       namespace: argocd
       labels:
-        app: batch-inference
+        app: raycluster
         environment: '{{ .env }}'
     spec:
       project: '{{ .project }}'
-      sources:
-        - repoURL: https://github.com/munhq/kubernetes_gpu.git
-          targetRevision: main
-          path: manifests
+      source:
+        repoURL: https://github.com/munhq/kubernetes_gpu.git
+        targetRevision: main
+        path: manifests/raycluster
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{ .namespace }}'

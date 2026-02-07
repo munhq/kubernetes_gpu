@@ -2,7 +2,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "batch-inference-api.fullname" . }}
+  name: {{ include "gpu-api.fullname" . }}
 rules:
   {{- toYaml .Values.rbac.rules | nindent 2 }}
   # Pod permissions (for reading results)
@@ -17,11 +17,11 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "batch-inference-api.fullname" . }}
+  name: {{ include "gpu-api.fullname" . }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ include "batch-inference-api.fullname" . }}
+  name: {{ include "gpu-api.fullname" . }}
 subjects:
   - kind: ServiceAccount
     name: {{ .Values.serviceAccount.name }}

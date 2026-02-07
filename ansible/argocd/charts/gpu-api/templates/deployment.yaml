@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "batch-inference-api.fullname" . }}
+  name: {{ include "gpu-api.fullname" . }}
   labels:
-    app: {{ include "batch-inference-api.name" . }}
+    app: {{ include "gpu-api.name" . }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ include "batch-inference-api.name" . }}
+      app: {{ include "gpu-api.name" . }}
   template:
     metadata:
       labels:
-        app: {{ include "batch-inference-api.name" . }}
+        app: {{ include "gpu-api.name" . }}
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       {{- with .Values.imagePullSecrets }}
