@@ -35,12 +35,14 @@ worker:
         - local
       labelSources:
         - custom
-    # Custom rules: Add nvidia.com/gpu.present for ANY NVIDIA GPU (dynamic)
-    custom:
-      - name: "nvidia-gpu-dynamic"
-        labels:
-          "nvidia.com/gpu.present": "true"
-        matchFeatures:
-          - feature: pci.device
-            matchExpressions:
-              vendor: {op: In, value: ["10de"]}  # ANY NVIDIA device
+    # Source-specific configuration
+    sources:
+      # Custom rules: Add nvidia.com/gpu.present for ANY NVIDIA GPU (dynamic)
+      custom:
+        - name: "nvidia-gpu-dynamic"
+          labels:
+            "nvidia.com/gpu.present": "true"
+          matchFeatures:
+            - feature: pci.device
+              matchExpressions:
+                vendor: {op: In, value: ["10de"]}  # ANY NVIDIA device

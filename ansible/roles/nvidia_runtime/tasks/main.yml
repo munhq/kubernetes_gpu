@@ -81,6 +81,13 @@
     state: present
     update_cache: true
 
+- name: Create K3s containerd config directory
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s/agent/etc/containerd
+    state: directory
+    mode: "0755"
+    recurse: true
+
 - name: Create K3s containerd config template with NVIDIA + CNI
   ansible.builtin.copy:
     content: |
