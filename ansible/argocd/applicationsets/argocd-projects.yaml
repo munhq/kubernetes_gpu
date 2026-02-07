@@ -13,16 +13,17 @@ spec:
           - path: "ansible/argocd/projects/*.yaml"
   template:
     metadata:
-      name: 'project-{{ .path.basename }}'
+      name: 'project-{{ .path.basenameNormalized }}'
       namespace: argocd
     spec:
       project: default
       source:
         repoURL: https://github.com/munhq/kubernetes_gpu.git
         targetRevision: main
-        path: 'ansible/argocd/projects'
+        path: ansible/argocd/projects
         directory:
           include: '{{ .path.filename }}'
+          recurse: false
       destination:
         server: https://kubernetes.default.svc
         namespace: argocd
