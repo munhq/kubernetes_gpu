@@ -4,7 +4,10 @@
 serviceMonitor:
   enabled: true
 
-# Allow dcgm-exporter to run on nodes with GPU taints
+# Force dcgm-exporter to run ONLY on GPU nodes
+nodeSelector:
+  nvidia.com/gpu: present
+
 tolerations:
   - key: nvidia.com/gpu
     operator: Exists
