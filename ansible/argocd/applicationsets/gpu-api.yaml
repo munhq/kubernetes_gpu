@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: batch-api
+  name: gpu-api
   namespace: argocd
 spec:
   goTemplate: true
@@ -13,17 +13,17 @@ spec:
             project: gpu
   template:
     metadata:
-      name: 'batch-api'
+      name: 'gpu-api'
       namespace: argocd
       labels:
-        app: batch-inference-api
+        app: gpu-api
         environment: '{{ .env }}'
     spec:
       project: '{{ .project }}'
       source:
         repoURL: https://github.com/munhq/kubernetes_gpu.git
         targetRevision: main
-        path: ansible/argocd/charts/batch-inference-api
+        path: ansible/argocd/charts/gpu-api
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{ .namespace }}'

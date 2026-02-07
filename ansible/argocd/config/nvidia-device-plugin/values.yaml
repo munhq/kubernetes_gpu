@@ -1,62 +1,23 @@
 # NVIDIA Device Plugin Helm Chart Values
-# Official chart: https://github.com/NVIDIA/k8s-device-plugin
+# Minimal configuration for chart v0.17.4
 
 # Node selector to only deploy on GPU nodes
 nodeSelector:
-  nvidia.com/gpu: present
+  nvidia.com/gpu: "present"
 
-# Tolerations for GPU nodes
+# Tolerations for GPU nodes with taints
 tolerations:
   - key: nvidia.com/gpu
     operator: Exists
     effect: NoSchedule
 
-# Use nvidia runtime for the device plugin pods
+# Use nvidia runtime
 runtimeClassName: nvidia
 
-# Plugin configuration
-config:
-  name: nvidia-device-plugin
-  # Use the nvidia runtime for GPU access
-  default: |-
-    version: v1
-    flags:
-      migStrategy: none
-      failOnInitError: false
-      nvidiaDriverRoot: /
-      plugin:
-        passDeviceSpecs: false
-        deviceListStrategy:
-          - envvar
-        deviceIDStrategy: uuid
-
-# Resource limits for the device plugin itself
+# Resource limits
 resources:
   limits:
     memory: 512Mi
   requests:
     cpu: 100m
     memory: 128Mi
-
-# Priority class for system-critical components
-priorityClassName: system-node-critical
-
-# Security context
-securityContext:
-  capabilities:
-    drop:
-      - ALL
-  allowPrivilegeEscalation: false
-  runAsNonRoot: false
-  runAsUser: 0
-  readOnlyRootFilesystem: true
-
-# Image configuration
-image:
-  repository: nvcr.io/nvidia/k8s-device-plugin
-  tag: v0.17.4
-  pullPolicy: IfNotPresent
-
-# Update strategy
-updateStrategy:
-  type: RollingUpdate

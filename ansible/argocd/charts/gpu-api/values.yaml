@@ -23,7 +23,7 @@ resources:
 
 serviceAccount:
   create: true
-  name: batch-api
+  name: gpu-api
 
 rbac:
   create: true
