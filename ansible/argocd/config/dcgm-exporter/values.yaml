@@ -4,9 +4,9 @@
 serviceMonitor:
   enabled: true
 
-# Force dcgm-exporter to run ONLY on GPU nodes
+# Force dcgm-exporter to run ONLY on GPU nodes (using NFD label)
 nodeSelector:
-  nvidia.com/gpu: present
+  feature.node.kubernetes.io/pci-0300_10de.present: "true"
 
 tolerations:
   - key: nvidia.com/gpu
