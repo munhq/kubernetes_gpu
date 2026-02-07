@@ -21,7 +21,7 @@ spec:
           targetRevision: 0.16.6
           helm:
             valueFiles:
-              - $values/argocd/config/node-feature-discovery/values.yaml
+              - $values/ansible/argocd/config/node-feature-discovery/values.yaml
         - repoURL: https://github.com/munhq/kubernetes_gpu.git
           targetRevision: main
           ref: values
