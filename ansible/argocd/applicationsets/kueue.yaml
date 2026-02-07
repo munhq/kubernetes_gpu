@@ -13,7 +13,7 @@ spec:
             project: gpu
             helmRepo: oci://registry.k8s.io/kueue/charts
             helmChart: kueue
-            helmVersion: 0.15.2
+            helmVersion: 0.16.0
   template:
     metadata:
       name: 'kueue'
