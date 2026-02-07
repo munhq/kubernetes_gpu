@@ -1,0 +1,35 @@
+# Node Feature Discovery Configuration
+# Minimal config to detect hardware features
+
+# Master component - aggregates features and labels nodes
+master:
+  tolerations:
+    - effect: NoSchedule
+      operator: Exists
+  resources:
+    limits:
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# Worker component - detects features on each node
+worker:
+  # Run on all nodes (including GPU nodes)
+  tolerations:
+    - effect: NoSchedule
+      operator: Exists
+  resources:
+    limits:
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  config:
+    core:
+      # Detect PCI devices (including NVIDIA GPUs)
+      sources:
+        - pci
+        - usb
+        - custom
+        - local
