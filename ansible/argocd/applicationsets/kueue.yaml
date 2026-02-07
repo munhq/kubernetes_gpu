@@ -24,9 +24,8 @@ spec:
     spec:
       project: '{{ .project }}'
       sources:
-        - repoURL: '{{ .helmRepo }}'
-          chart: '{{ .helmChart }}'
-          targetRevision: '{{ .helmVersion }}'
+        - repoURL: https://github.com/kubernetes-sigs/kueue/releases/download/v0.10.1/kueue-0.10.1.tgz
+          targetRevision: HEAD
           helm:
             releaseName: kueue
             valueFiles:
