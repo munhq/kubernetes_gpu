@@ -72,6 +72,24 @@
   ansible.builtin.include_tasks: configure-github-app.yml
   tags: configure-repo
 
+- name: Copy project manifests to server
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../argocd/projects/"
+    dest: /tmp/argocd-projects/
+    mode: '0644'
+
+- name: Apply ArgoCD projects
+  ansible.builtin.command: kubectl apply -f /tmp/argocd-projects/
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: projects_result
+  changed_when: "'created' in projects_result.stdout or 'configured' in projects_result.stdout"
+
+- name: Clean up project files
+  ansible.builtin.file:
+    path: /tmp/argocd-projects
+    state: absent
+
 - name: Create gpu-workloads namespace
   kubernetes.core.k8s:
     state: present
