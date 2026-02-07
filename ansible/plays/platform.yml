@@ -4,6 +4,13 @@
 #
 # Usage: ansible-playbook platform.yml
 
+- name: platform.yml | Storage directories
+  hosts: all
+  gather_facts: true
+
+  roles:
+    - { role: storage_dirs,  tags: ["storage", "platform"] }
+
 - name: platform.yml | K3s server
   hosts: k3s_server
   gather_facts: true
