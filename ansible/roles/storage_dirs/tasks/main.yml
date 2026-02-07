@@ -1,0 +1,22 @@
+---
+# Storage directories for K8s persistent volumes and data
+
+- name: Create Kubernetes storage directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  loop:
+    - /opt/kube/data
+    - /opt/data
+
+- name: Create GPU workload directories (GPU nodes only)
+  ansible.builtin.file:
+    path: /opt/gpu
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  when: "'gpu_nodes' in group_names"

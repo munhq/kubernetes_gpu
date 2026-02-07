@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: local-path-provisioner
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          - env: infrastructure
+            namespace: local-path-storage
+            project: infrastructure
+  template:
+    metadata:
+      name: 'local-path-provisioner'
+      namespace: argocd
+      labels:
+        app: local-path-provisioner
+        environment: '{{ .env }}'
+    spec:
+      project: '{{ .project }}'
+      source:
+        repoURL: https://github.com/rancher/local-path-provisioner.git
+        targetRevision: v0.0.30
+        path: deploy/chart/local-path-provisioner
+        helm:
+          releaseName: local-path-provisioner
+          values: |
+            storageClass:
+              name: local-path
+              defaultClass: true
+            nodePathMap:
+              - node: DEFAULT_PATH_FOR_NON_LISTED_NODES
+                paths:
+                  - /opt/kube/data
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .namespace }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
