@@ -48,51 +48,10 @@
     state: started
   when: k3s_agent_install is changed
 
-- name: Wait for CNI config to be created
+- name: Wait for K3s CNI to initialize
   ansible.builtin.wait_for:
     path: /var/lib/rancher/k3s/agent/etc/cni/net.d/10-flannel.conflist
-    timeout: 60
-
-- name: Ensure /etc/cni/net.d directory exists
-  ansible.builtin.file:
-    path: /etc/cni/net.d
-    state: directory
-    mode: "0755"
-
-- name: Copy CNI config to /etc/cni/net.d for kubelet
-  ansible.builtin.copy:
-    src: /var/lib/rancher/k3s/agent/etc/cni/net.d/10-flannel.conflist
-    dest: /etc/cni/net.d/10-flannel.conflist
-    remote_src: true
-    mode: "0644"
-  register: cni_config_copy
-
-- name: Ensure /opt/cni/bin directory exists
-  ansible.builtin.file:
-    path: /opt/cni/bin
-    state: directory
-    mode: "0755"
-
-- name: Find K3s CNI plugins directory
-  ansible.builtin.find:
-    paths: /var/lib/rancher/k3s/data
-    patterns: 'bin'
-    file_type: directory
-    recurse: true
-    depth: 2
-  register: cni_bin_dirs
-
-- name: Symlink CNI plugins to /opt/cni/bin
-  ansible.builtin.shell: |
-    ln -sf {{ cni_bin_dirs.files[0].path }}/* /opt/cni/bin/
-  when: cni_bin_dirs.files | length > 0
-  changed_when: true
-
-- name: Restart K3s agent if CNI config was copied
-  ansible.builtin.systemd:
-    name: k3s-agent
-    state: restarted
-  when: cni_config_copy is changed
+    timeout: 120
 
 - name: Wait for K3s agent service to become active
   ansible.builtin.systemd:
