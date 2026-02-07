@@ -22,5 +22,13 @@ resources:
     cpu: 100m
     memory: 128Mi
 
-# Remove PCI device affinity (we don't have NFD)
-affinity: {}
+# Override affinity to use NFD's actual label format
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: feature.node.kubernetes.io/pci-0300_10de.present
+              operator: In
+              values:
+                - "true"
