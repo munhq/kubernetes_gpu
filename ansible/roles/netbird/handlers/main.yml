@@ -2,3 +2,20 @@
 - name: reload systemd
   ansible.builtin.systemd:
     daemon_reload: true
+
+- name: restart netbird
+  ansible.builtin.systemd:
+    name: netbird
+    state: restarted
+
+- name: verify netbird connectivity
+  ansible.builtin.shell: |
+    # Wait for NetBird to reconnect
+    sleep 5
+    # Check that we have at least 1 connected peer
+    netbird status --detail | grep -E "Status: Connected" | wc -l
+  register: connected_peers
+  retries: 3
+  delay: 5
+  until: connected_peers.stdout | int >= 1
+  changed_when: false

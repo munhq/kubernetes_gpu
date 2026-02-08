@@ -2,18 +2,41 @@
 ---
 # tasks file for k3s_agent
 
-- name: Get Netbird VPN IP
+- name: Get current Netbird VPN IP
   ansible.builtin.shell: |
     netbird status | grep -oP 'NetBird IP:\s*\K[\d.]+'
   register: vpn_ip_raw
   changed_when: false
-  when: netbird_vpn_ip is not defined
 
 - name: Store Netbird VPN IP as fact
   ansible.builtin.set_fact:
     netbird_vpn_ip: "{{ vpn_ip_raw.stdout | trim }}"
-    cacheable: true
-  when: netbird_vpn_ip is not defined
+    netbird_vpn_ip_changed: "{{ (netbird_vpn_ip is defined and netbird_vpn_ip != vpn_ip_raw.stdout | trim) | bool }}"
+
+- name: Display NetBird IP info
+  ansible.builtin.debug:
+    msg: "NetBird VPN IP: {{ netbird_vpn_ip }}{{ ' (CHANGED - will trigger restart)' if netbird_vpn_ip_changed else '' }}"
+
+- name: Restart NetBird if IP changed
+  ansible.builtin.systemd:
+    name: netbird
+    state: restarted
+  when: netbird_vpn_ip_changed | default(false)
+
+- name: Wait for NetBird to reconnect after restart
+  ansible.builtin.pause:
+    seconds: 10
+  when: netbird_vpn_ip_changed | default(false)
+
+- name: Verify NetBird connectivity to server
+  ansible.builtin.shell: |
+    # Get server IP and verify connectivity
+    ping -c 3 -W 5 {{ hostvars[groups['k3s_server'][0]]['netbird_vpn_ip'] | default('100.97.107.135') }}
+  register: netbird_server_ping
+  changed_when: false
+  retries: 3
+  delay: 5
+  until: netbird_server_ping.rc == 0
 
 - name: Get K3s server URL from server host
   ansible.builtin.set_fact:
@@ -36,7 +59,7 @@
     INSTALL_K3S_VERSION={{ k3s_version }} \
     K3S_URL={{ k3s_server_url }} \
     K3S_TOKEN={{ k3s_token }} \
-    INSTALL_K3S_EXEC="agent --node-name={{ inventory_hostname }} --node-ip={{ netbird_vpn_ip }}" \
+    INSTALL_K3S_EXEC="agent --node-name={{ inventory_hostname }} --node-ip={{ netbird_vpn_ip }} --flannel-iface=wt0" \
     /tmp/k3s-install.sh
   register: k3s_agent_install
   changed_when: "'No change detected' not in k3s_agent_install.stderr"
