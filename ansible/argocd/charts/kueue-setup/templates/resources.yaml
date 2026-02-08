@@ -14,6 +14,18 @@ metadata:
   name: {{ .Values.clusterQueue.name }}
 spec:
   namespaceSelector: {}
+  fairSharing:
+    weight: 1
+  flavorFungibility:
+    whenCanBorrow: MayStopSearch
+    whenCanPreempt: TryNextFlavor
+  preemption:
+    withinClusterQueue: LowerPriority
+    reclaimWithinCohort: Any
+    borrowWithinCohort:
+      policy: LowerPriority
+  queueingStrategy: BestEffortFIFO
+  stopPolicy: None
   resourceGroups:
   - coveredResources: ["cpu", "memory", "nvidia.com/gpu"]
     flavors:
@@ -25,14 +37,6 @@ spec:
         nominalQuota: {{ .Values.clusterQueue.memory }}
       - name: "nvidia.com/gpu"
         nominalQuota: {{ .Values.clusterQueue.gpus }}
-  preemption:
-    withinClusterQueue: LowerPriority
-    reclaimWithinCohort: Any
-    borrowWithinCohort:
-      policy: LowerPriority
-  fairSharing:
-    enable: true
-    weight: 1
 
 ---
 apiVersion: kueue.x-k8s.io/v1beta2
