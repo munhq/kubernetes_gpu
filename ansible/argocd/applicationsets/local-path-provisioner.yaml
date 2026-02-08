@@ -9,7 +9,7 @@ spec:
     - list:
         elements:
           - env: infrastructure
-            namespace: local-path-storage
+            namespace: kube-system
             project: infrastructure
   template:
     metadata:

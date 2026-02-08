@@ -1,5 +1,9 @@
 # KubeRay Operator configuration
 # Ray on Kubernetes operator for managing Ray clusters
 
+# Deploy to gpu-workloads namespace instead of kuberay-system
+singleNamespaceInstall: true
+watchNamespace: gpu-workloads
+
 # Default values - using upstream defaults
 # Add custom configuration here as needed
