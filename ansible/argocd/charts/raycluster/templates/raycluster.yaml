@@ -1,0 +1,71 @@
+apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  name: {{ .Values.clusterName }}
+spec:
+  rayVersion: {{ .Values.rayVersion | quote }}
+
+  headGroupSpec:
+    rayStartParams:
+      dashboard-host: '0.0.0.0'
+      num-cpus: '0'
+    template:
+      spec:
+        nodeSelector:
+          nvidia.com/gpu.present: "true"
+        tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+        containers:
+        - name: ray-head
+          image: "{{ .Values.head.image }}"
+          ports:
+          - containerPort: 6379
+            name: gcs
+          - containerPort: 8265
+            name: dashboard
+          - containerPort: 10001
+            name: client
+          - containerPort: 8000
+            name: serve
+          resources:
+            {{- toYaml .Values.head.resources | nindent 12 }}
+
+  workerGroupSpecs:
+  - replicas: {{ .Values.workers.replicas }}
+    minReplicas: {{ .Values.workers.minReplicas }}
+    maxReplicas: {{ .Values.workers.maxReplicas }}
+    groupName: gpu-workers
+    rayStartParams:
+      num-gpus: "1"
+    template:
+      spec:
+        nodeSelector:
+          nvidia.com/gpu.present: "true"
+        tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+        containers:
+        - name: ray-worker
+          image: "{{ .Values.workers.image }}"
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "ray stop"]
+          resources:
+            {{- toYaml .Values.workers.resources | nindent 12 }}
+          volumeMounts:
+          - name: models
+            mountPath: /opt/models
+          env:
+          - name: HF_HOME
+            value: /opt/models/huggingface
+          - name: TRANSFORMERS_CACHE
+            value: /opt/models/huggingface
+        volumes:
+        - name: models
+          hostPath:
+            path: {{ .Values.workers.modelsHostPath }}
+            type: Directory

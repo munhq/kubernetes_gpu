@@ -11,7 +11,6 @@ spec:
           - env: gpu
             namespace: gpu-workloads
             project: gpu
-            clusterName: raycluster-batch-inference
   template:
     metadata:
       name: 'raycluster'
@@ -24,7 +23,7 @@ spec:
       source:
         repoURL: https://github.com/munhq/kubernetes_gpu.git
         targetRevision: main
-        path: manifests/raycluster
+        path: ansible/argocd/charts/raycluster
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{ .namespace }}'
