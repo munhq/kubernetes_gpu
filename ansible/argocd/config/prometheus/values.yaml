@@ -70,9 +70,8 @@ grafana:
             path: /var/lib/grafana/dashboards/grafana-dashboards
 
   # Community dashboards from grafana.com
-  # NOTE: Folder organization is done via dashboardProviders, not here
   dashboards:
-    default:
+    grafana-dashboards:
       # Kubernetes monitoring dashboards
       k8s-views-global:
         gnetId: 15757
