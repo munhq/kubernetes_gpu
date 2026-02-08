@@ -69,61 +69,49 @@ grafana:
           options:
             path: /var/lib/grafana/dashboards/grafana-dashboards
 
-  # Community dashboards from grafana.com organized by category
+  # Community dashboards from grafana.com
+  # NOTE: Folder organization is done via dashboardProviders, not here
   dashboards:
-    # Kubernetes monitoring dashboards
-    kubernetes:
+    default:
+      # Kubernetes monitoring dashboards
       k8s-views-global:
         gnetId: 15757
         revision: 1
         datasource: Prometheus
-        folder: Kubernetes
       k8s-views-namespaces:
         gnetId: 15758
         revision: 1
         datasource: Prometheus
-        folder: Kubernetes
       k8s-views-nodes:
         gnetId: 15759
         revision: 1
         datasource: Prometheus
-        folder: Kubernetes
       k8s-views-pods:
         gnetId: 15760
         revision: 1
         datasource: Prometheus
-        folder: Kubernetes
       k8s-cluster-summary:
         gnetId: 11454
         revision: 1
         datasource: Prometheus
-        folder: Kubernetes
       k8s-monitoring:
         gnetId: 21410
         revision: 1
         datasource: Prometheus
-        folder: Kubernetes
-
-    # NVIDIA GPU monitoring dashboards
-    nvidia:
+      # NVIDIA GPU monitoring dashboards
       dcgm-exporter:
         gnetId: 22515
         revision: 1
         datasource: Prometheus
-        folder: NVIDIA
       nvidia-gpu-metrics:
         gnetId: 14574
         revision: 1
         datasource: Prometheus
-        folder: NVIDIA
-
-    # Host/Node monitoring
-    host:
+      # Host/Node monitoring
       node-exporter-full:
         gnetId: 1860
         revision: 37
         datasource: Prometheus
-        folder: Host
 
 # Prometheus configuration
 prometheus:
