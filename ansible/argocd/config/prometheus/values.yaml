@@ -29,12 +29,19 @@ grafana:
   defaultDashboardsEnabled: false
 
   # Sidecar auto-discovers ConfigMaps with label grafana_dashboard=1
+  # Folder provisioning is handled by custom providers, not sidecar
   sidecar:
     dashboards:
       enabled: true
       label: grafana_dashboard
       labelValue: "1"
       searchNamespace: ALL
+      provider:
+        disableDelete: false
+        foldersFromFilesStructure: false
+        folder: ''
+        # Disable sidecar's own dashboard provider - we use custom providers for folders
+        disable: true
 
   # Dashboard providers - separate provider for each folder
   dashboardProviders:
