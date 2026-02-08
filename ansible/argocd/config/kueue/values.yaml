@@ -1,5 +1,8 @@
 # Kueue configuration for GPU batch inference workloads
 
+# Deploy to gpu-workloads namespace instead of kueue-system
+namespaceOverride: gpu-workloads
+
 # Enable integrations
 integrations:
   # Enable RayJob integration
