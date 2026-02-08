@@ -13,7 +13,7 @@ spec:
             project: infrastructure
             helmRepo: https://prometheus-community.github.io/helm-charts
             helmChart: kube-prometheus-stack
-            helmVersion: 67.9.0
+            helmVersion: 81.5.0
   template:
     metadata:
       name: 'monitoring'
