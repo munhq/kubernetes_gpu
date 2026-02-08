@@ -1,6 +1,7 @@
 ---
 # Firewall - UFW configuration for K3s cluster
-# Secures public-facing ports, K8s traffic goes through Netbird VPN
+# Rule ordering matters: UFW uses first-match, so allow rules for VPN/cluster
+# networks must come BEFORE deny rules that block public access to K8s ports.
 
 - name: Install UFW
   ansible.builtin.apt:
@@ -20,6 +21,7 @@
   loop:
     - { direction: 'incoming', policy: 'deny' }
     - { direction: 'outgoing', policy: 'allow' }
+    - { direction: 'routed', policy: 'allow' }
 
 # ── SSH ──────────────────────────────────────────────────────────────────────
 - name: Allow SSH (prevent lockout)
@@ -61,23 +63,42 @@
     comment: 'HTTPS ingress'
   when: "'k3s_server' in group_names"
 
-# ── K8s Internal (DENY from public, allow from Netbird VPN) ─────────────────
+# ── Internal cluster networks (MUST come before deny rules) ──────────────────
+# UFW is first-match: these allow rules must be evaluated before the deny rules
+# below, otherwise VPN traffic to K8s ports (6443, 10250) gets denied too.
+- name: Allow all traffic from Netbird VPN
+  community.general.ufw:
+    rule: allow
+    from_ip: '100.97.0.0/16'
+    comment: 'Allow all from Netbird VPN'
+
+- name: Allow all traffic from Pod network
+  community.general.ufw:
+    rule: allow
+    from_ip: '10.42.0.0/16'
+    comment: 'Allow all from Pod network'
+
+- name: Allow all traffic from Service network
+  community.general.ufw:
+    rule: allow
+    from_ip: '10.43.0.0/16'
+    comment: 'Allow all from Service network'
+
+# ── K8s Internal (deny sensitive ports from public internet) ─────────────────
+# Only blocks traffic NOT already matched by the VPN/pod/service allows above.
 - name: Deny K8s API from public internet
   community.general.ufw:
     rule: deny
     port: '6443'
     proto: tcp
-    comment: 'K8s API - VPN only'
+    comment: 'K8s API - deny public'
 
 - name: Deny kubelet from public internet
   community.general.ufw:
     rule: deny
     port: '10250'
     proto: tcp
-    comment: 'Kubelet - VPN only'
-
-# NOTE: K8s traffic (6443, 10250, 2379-2380, 10251, 10252) goes through Netbird VPN
-# UFW doesn't block traffic on VPN interfaces, so no explicit allow rules needed
+    comment: 'Kubelet - deny public'
 
 # ── Enable UFW ───────────────────────────────────────────────────────────────
 - name: Enable UFW

@@ -59,7 +59,7 @@
     INSTALL_K3S_VERSION={{ k3s_version }} \
     K3S_URL={{ k3s_server_url }} \
     K3S_TOKEN={{ k3s_token }} \
-    INSTALL_K3S_EXEC="agent --node-name={{ inventory_hostname }} --node-ip={{ netbird_vpn_ip }} --flannel-iface=wt0" \
+    INSTALL_K3S_EXEC="agent --node-name={{ inventory_hostname }} --node-ip={{ netbird_vpn_ip }} --node-external-ip={{ netbird_vpn_ip }} --flannel-iface=wt0" \
     /tmp/k3s-install.sh
   register: k3s_agent_install
   changed_when: "'No change detected' not in k3s_agent_install.stderr"

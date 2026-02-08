@@ -8,7 +8,17 @@ write-kubeconfig-mode: "0644"
 # Bind to Netbird VPN IP for inter-node communication
 node-ip: {{ netbird_vpn_ip }}
 advertise-address: {{ netbird_vpn_ip }}
+
+# Flannel networking over Netbird VPN:
+# flannel-iface: binds the VXLAN device (flannel.1) to wt0 so it sends/receives
+#   encapsulated packets through the VPN tunnel, not the public eth0 interface.
+# node-external-ip + flannel-external-ip: sets the PublicIP annotation to the VPN IP
+#   so remote nodes know to send VXLAN packets to this node's VPN address.
+# Both are needed: iface controls where flannel.1 listens, external-ip controls
+# what destination IP remote nodes use for VXLAN.
 flannel-iface: wt0
+node-external-ip: {{ netbird_vpn_ip }}
+flannel-external-ip: true
 
 # Disable cloud controller (bare metal setup)
 disable-cloud-controller: true
