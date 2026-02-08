@@ -8,6 +8,12 @@
     name: netbird
     state: restarted
 
+- name: restart k3s after netbird reconfigure
+  ansible.builtin.systemd:
+    name: "{{ 'k3s' if 'k3s_server' in group_names else 'k3s-agent' }}"
+    state: restarted
+  listen: restart k3s after netbird reconfigure
+
 - name: verify netbird connectivity
   ansible.builtin.shell: |
     # Wait for NetBird to reconnect

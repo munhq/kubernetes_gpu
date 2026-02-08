@@ -15,14 +15,15 @@ workers:
   replicas: 2
   minReplicas: 1
   maxReplicas: 2
+  gpusPerWorker: 2
   image: rayproject/ray:2.53.0-py310-gpu
   modelsHostPath: /opt/gpu
   resources:
     limits:
-      nvidia.com/gpu: 1
+      nvidia.com/gpu: 2
       cpu: "4"
       memory: "16Gi"
     requests:
-      nvidia.com/gpu: 1
+      nvidia.com/gpu: 2
       cpu: "2"
       memory: "8Gi"

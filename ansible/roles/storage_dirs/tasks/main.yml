@@ -14,9 +14,12 @@
 
 - name: Create GPU workload directories (GPU nodes only)
   ansible.builtin.file:
-    path: /opt/gpu
+    path: "{{ item }}"
     state: directory
-    mode: "0755"
+    mode: "0777"
     owner: root
     group: root
+  loop:
+    - /opt/gpu
+    - /opt/gpu/huggingface
   when: "'gpu_nodes' in group_names"

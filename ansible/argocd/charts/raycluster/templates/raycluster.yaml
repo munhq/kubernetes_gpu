@@ -41,7 +41,7 @@ spec:
     maxReplicas: {{ .Values.workers.maxReplicas }}
     groupName: gpu-workers
     rayStartParams:
-      num-gpus: "1"
+      num-gpus: {{ .Values.workers.gpusPerWorker | default 1 | quote }}
       metrics-export-port: '8080'
     template:
       spec:

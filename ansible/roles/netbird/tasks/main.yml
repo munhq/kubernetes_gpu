@@ -1,5 +1,8 @@
 ---
 # Netbird VPN installation and configuration
+# Blacklists K8s interfaces (cni0, flannel.1, docker0, veth) to prevent
+# Netbird from using pod network IPs as ICE candidates, which causes
+# circular routing (VPN through flannel, flannel through VPN).
 
 - name: Add Netbird GPG key
   ansible.builtin.shell: |
@@ -31,11 +34,46 @@
   changed_when: false
   failed_when: false
 
-- name: Connect to Netbird network
-  ansible.builtin.command: "netbird up --setup-key {{ netbird_setup_key }}"
+- name: Check if interface blacklist is already configured
+  ansible.builtin.shell: |
+    python3 -c "
+    import json
+    with open('/var/lib/netbird/default.json') as f:
+        cfg = json.load(f)
+    bl = cfg.get('IFaceBlackList', [])
+    needed = {'cni0', 'flannel.1', 'docker0'}
+    if needed.issubset(set(bl)):
+        print('OK')
+    else:
+        print('MISSING')
+    "
+  register: blacklist_check
+  changed_when: false
+  failed_when: false
+
+- name: Connect to Netbird network (first time)
+  ansible.builtin.command: >-
+    netbird up
+    --setup-key {{ netbird_setup_key }}
+    --extra-iface-blacklist cni0,flannel.1,docker0,veth
   when: netbird_status_check.rc != 0 or 'Connected' not in netbird_status_check.stdout
   register: netbird_connect
   changed_when: true
+
+# Only do the disruptive down/up if already connected but blacklist is missing.
+# This avoids killing wt0 (and flannel.1) on every ansible run.
+- name: Reconfigure Netbird with interface blacklist
+  ansible.builtin.shell: |
+    netbird down
+    sleep 2
+    netbird up --setup-key {{ netbird_setup_key }} --extra-iface-blacklist cni0,flannel.1,docker0,veth
+  when:
+    - netbird_status_check.rc == 0
+    - "'Connected' in netbird_status_check.stdout"
+    - blacklist_check.stdout is defined
+    - "'MISSING' in blacklist_check.stdout"
+  changed_when: true
+  notify: restart k3s after netbird reconfigure
 
 - name: Enable Netbird service
   ansible.builtin.systemd:
