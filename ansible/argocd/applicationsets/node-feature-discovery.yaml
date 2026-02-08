@@ -15,12 +15,6 @@ spec:
       name: node-feature-discovery
     spec:
       project: infrastructure
-      ignoreDifferences:
-        - group: apps
-          kind: Deployment
-          name: node-feature-discovery-master
-          jqPathExpressions:
-            - .spec.replicas
       sources:
         - repoURL: https://kubernetes-sigs.github.io/node-feature-discovery/charts
           chart: node-feature-discovery
@@ -40,7 +34,3 @@ spec:
           selfHeal: true
         syncOptions:
           - CreateNamespace=true
-      ignoreHealthChecks:
-        - group: apps
-          kind: Deployment
-          name: node-feature-discovery-master
