@@ -24,6 +24,20 @@ controller:
       cpu: 100m
       memory: 128Mi
 
+  # Exclude critical infrastructure namespaces from webhook management
+  # This prevents Kueue downtime from blocking monitoring, ArgoCD, and core services
+  managedJobsNamespaceSelector:
+    matchExpressions:
+      - key: kubernetes.io/metadata.name
+        operator: NotIn
+        values:
+          - kube-system
+          - gpu-workloads
+          - monitoring      # Critical: monitoring must work even if Kueue is down
+          - argocd          # Critical: ArgoCD must work even if Kueue is down
+          - kube-node-lease
+          - kube-public
+
 # Webhook configuration
 webhookServer:
   resources:
