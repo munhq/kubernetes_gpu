@@ -69,39 +69,61 @@ grafana:
           options:
             path: /var/lib/grafana/dashboards/grafana-dashboards
 
-  # Community dashboards from grafana.com
+  # Community dashboards from grafana.com organized by category
   dashboards:
-    grafana-dashboards:
-      # Node Exporter Full — comprehensive host-level metrics (CPU, memory, disk, network)
+    # Kubernetes monitoring dashboards
+    kubernetes:
+      k8s-views-global:
+        gnetId: 15757
+        revision: 1
+        datasource: Prometheus
+        folder: Kubernetes
+      k8s-views-namespaces:
+        gnetId: 15758
+        revision: 1
+        datasource: Prometheus
+        folder: Kubernetes
+      k8s-views-nodes:
+        gnetId: 15759
+        revision: 1
+        datasource: Prometheus
+        folder: Kubernetes
+      k8s-views-pods:
+        gnetId: 15760
+        revision: 1
+        datasource: Prometheus
+        folder: Kubernetes
+      k8s-cluster-summary:
+        gnetId: 11454
+        revision: 1
+        datasource: Prometheus
+        folder: Kubernetes
+      k8s-monitoring:
+        gnetId: 21410
+        revision: 1
+        datasource: Prometheus
+        folder: Kubernetes
+
+    # NVIDIA GPU monitoring dashboards
+    nvidia:
+      dcgm-exporter:
+        gnetId: 22515
+        revision: 1
+        datasource: Prometheus
+        folder: NVIDIA
+      nvidia-gpu-metrics:
+        gnetId: 14574
+        revision: 1
+        datasource: Prometheus
+        folder: NVIDIA
+
+    # Host/Node monitoring
+    host:
       node-exporter-full:
         gnetId: 1860
         revision: 37
         datasource: Prometheus
-      # NVIDIA DCGM Exporter — GPU utilization, memory, temperature, power
-      nvidia-dcgm:
-        gnetId: 12239
-        revision: 2
-        datasource: Prometheus
-      # Kubernetes Cluster Monitoring
-      kubernetes-cluster:
-        gnetId: 7249
-        revision: 1
-        datasource: Prometheus
-      # Kubernetes Pods Monitoring
-      kubernetes-pods:
-        gnetId: 6417
-        revision: 1
-        datasource: Prometheus
-      # Ray Dashboard
-      ray-dashboard:
-        gnetId: 19854
-        revision: 1
-        datasource: Prometheus
-      # Kueue Dashboard
-      kueue-dashboard:
-        gnetId: 20409
-        revision: 1
-        datasource: Prometheus
+        folder: Host
 
 # Prometheus configuration
 prometheus:
