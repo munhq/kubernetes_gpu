@@ -2,18 +2,39 @@
 ---
 # tasks file for k3s_server
 
-- name: Get Netbird VPN IP
+- name: Get current Netbird VPN IP
   ansible.builtin.shell: |
     netbird status | grep -oP 'NetBird IP:\s*\K[\d.]+'
   register: vpn_ip_raw
   changed_when: false
-  when: netbird_vpn_ip is not defined
 
 - name: Store Netbird VPN IP as fact
   ansible.builtin.set_fact:
     netbird_vpn_ip: "{{ vpn_ip_raw.stdout | trim }}"
-    cacheable: true
-  when: netbird_vpn_ip is not defined
+    netbird_vpn_ip_changed: "{{ (netbird_vpn_ip is defined and netbird_vpn_ip != vpn_ip_raw.stdout | trim) | bool }}"
+
+- name: Display NetBird IP info
+  ansible.builtin.debug:
+    msg: "NetBird VPN IP: {{ netbird_vpn_ip }}{{ ' (CHANGED - will trigger restart)' if netbird_vpn_ip_changed else '' }}"
+
+- name: Restart NetBird if IP changed
+  ansible.builtin.systemd:
+    name: netbird
+    state: restarted
+  when: netbird_vpn_ip_changed | default(false)
+
+- name: Wait for NetBird to reconnect after restart
+  ansible.builtin.pause:
+    seconds: 10
+  when: netbird_vpn_ip_changed | default(false)
+
+- name: Verify NetBird connectivity to other nodes
+  ansible.builtin.shell: |
+    # Check if we can reach at least one other node via NetBird
+    netbird status --detail | grep -E "Status: Connected" | wc -l
+  register: netbird_connected_peers
+  changed_when: false
+  failed_when: netbird_connected_peers.stdout | int < 1
 
 - name: Check if K3s is installed
   ansible.builtin.stat:

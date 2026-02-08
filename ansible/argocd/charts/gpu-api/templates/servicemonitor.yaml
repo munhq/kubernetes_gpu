@@ -1,0 +1,17 @@
+{{- if .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "gpu-api.fullname" . }}
+  labels:
+    app: {{ include "gpu-api.name" . }}
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: {{ include "gpu-api.name" . }}
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: {{ .Values.serviceMonitor.interval }}
+{{- end }}

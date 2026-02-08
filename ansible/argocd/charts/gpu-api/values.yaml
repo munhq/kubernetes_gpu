@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/munhq/batch-inference-api
+  repository: ghcr.io/munhq/gpu-api
   pullPolicy: Always
   tag: "latest"
 
@@ -27,12 +27,26 @@ serviceAccount:
 
 rbac:
   create: true
-  # Permissions needed to create/read/delete RayJobs
   rules:
     - apiGroups: ["ray.io"]
       resources: ["rayjobs"]
       verbs: ["create", "get", "list", "watch", "delete"]
 
+serviceMonitor:
+  enabled: true
+  interval: 30s
+
 env:
   - name: PORT
     value: "8000"
+  - name: API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: gpu-api-secret
+        key: api-key
+  - name: RAY_DASHBOARD_URL
+    value: "http://raycluster-batch-inference-head-svc:8265"
+  - name: DEFAULT_MODEL
+    value: "Qwen/Qwen2.5-0.5B-Instruct"
+  - name: NAMESPACE
+    value: "gpu-workloads"

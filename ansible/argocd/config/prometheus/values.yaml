@@ -20,8 +20,54 @@ grafana:
       cpu: 500m
       memory: 512Mi
 
-  # Pre-installed dashboards
+  # Pre-installed dashboards (kube-prometheus-stack defaults: etcd, apiserver, etc.)
   defaultDashboardsEnabled: true
+
+  # Sidecar auto-discovers ConfigMaps with label grafana_dashboard=1
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+
+  # Dashboard providers
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: 'grafana-dashboards'
+          orgId: 1
+          folder: 'Custom'
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/grafana-dashboards
+
+  # Community dashboards from grafana.com
+  dashboards:
+    grafana-dashboards:
+      # Node Exporter Full — comprehensive host-level metrics (CPU, memory, disk, network)
+      node-exporter-full:
+        gnetId: 1860
+        revision: 37
+        datasource: Prometheus
+      # NVIDIA DCGM Exporter — GPU utilization, memory, temperature, power
+      nvidia-dcgm:
+        gnetId: 12239
+        revision: 2
+        datasource: Prometheus
+      # Kubernetes Cluster Overview
+      kubernetes-cluster:
+        gnetId: 6417
+        revision: 1
+        datasource: Prometheus
+      # Kubernetes Pods
+      kubernetes-pods:
+        gnetId: 16277
+        revision: 1
+        datasource: Prometheus
 
 # Prometheus configuration
 prometheus:
@@ -71,7 +117,7 @@ nodeExporter:
 kubeStateMetrics:
   enabled: true
 
-# Default service monitors
+# Default rules
 defaultRules:
   create: true
   rules:

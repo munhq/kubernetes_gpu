@@ -29,7 +29,13 @@ spec:
         env:
         {{- range .Values.env }}
         - name: {{ .name }}
+          {{- if .value }}
           value: {{ .value | quote }}
+          {{- end }}
+          {{- if .valueFrom }}
+          valueFrom:
+            {{- toYaml .valueFrom | nindent 12 }}
+          {{- end }}
         {{- end }}
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
@@ -45,9 +51,3 @@ spec:
             port: {{ .Values.service.port }}
           initialDelaySeconds: 5
           periodSeconds: 10
-        volumeMounts:
-        - name: results
-          mountPath: /tmp/batch-results
-      volumes:
-      - name: results
-        emptyDir: {}

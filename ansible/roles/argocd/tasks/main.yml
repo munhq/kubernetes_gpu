@@ -119,6 +119,19 @@
           password: "{{ vault_ghcr_pull_token }}"
           auth: "{{ ('munhq:' + vault_ghcr_pull_token) | b64encode }}"
 
+- name: Create GPU API secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: gpu-api-secret
+        namespace: gpu-workloads
+      type: Opaque
+      data:
+        api-key: "{{ gpu_api_secret | b64encode }}"
+
 - name: Apply ApplicationSets bootstrap (auto-syncs from git)
   kubernetes.core.k8s:
     state: present

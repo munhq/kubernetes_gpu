@@ -1,6 +1,18 @@
 ---
 # NVIDIA Runtime - auto-install drivers + container toolkit
 
+- name: Prevent unattended-upgrades from breaking NVIDIA
+  ansible.builtin.copy:
+    content: |
+      // Prevent automatic updates from breaking NVIDIA drivers
+      Unattended-Upgrade::Package-Blacklist {
+        "nvidia-*";
+        "libnvidia-*";
+        "cuda-*";
+      };
+    dest: /etc/apt/apt.conf.d/51nvidia-blacklist
+    mode: "0644"
+
 - name: Check if NVIDIA GPU present
   ansible.builtin.shell: lspci | grep -i nvidia
   register: nvidia_gpu
@@ -13,10 +25,17 @@
   changed_when: false
   failed_when: false
 
-- name: Install NVIDIA drivers (Ubuntu)
+- name: Check for NVIDIA driver/library version mismatch
+  ansible.builtin.shell: |
+    nvidia-smi 2>&1 | grep -i "version mismatch" && echo "MISMATCH" || echo "OK"
+  register: nvidia_version_check
+  changed_when: false
+  failed_when: false
+
+- name: Install/Fix NVIDIA drivers (Ubuntu)
   when:
     - nvidia_gpu.rc == 0
-    - nvidia_smi.rc != 0
+    - (nvidia_smi.rc != 0 or nvidia_version_check.stdout == "MISMATCH")
     - ansible_distribution == "Ubuntu"
   block:
     - name: Add universe repository
@@ -31,14 +50,24 @@
       ansible.builtin.apt:
         update_cache: true
 
+    - name: Install ubuntu-drivers-common
+      ansible.builtin.apt:
+        name: ubuntu-drivers-common
+        state: present
+
     - name: Auto-install NVIDIA drivers
-      ansible.builtin.command: ubuntu-drivers autoinstall
+      ansible.builtin.command: ubuntu-drivers install
       changed_when: true
       register: driver_install
 
     - name: Display driver installation result
       ansible.builtin.debug:
-        msg: "NVIDIA drivers installed. Reboot may be required."
+        msg: "NVIDIA drivers installed/fixed. Rebooting node to load new driver..."
+
+    - name: Reboot node to load new NVIDIA driver
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+        msg: "Rebooting to load NVIDIA driver"
 
 - name: Verify NVIDIA driver after installation
   ansible.builtin.command: nvidia-smi

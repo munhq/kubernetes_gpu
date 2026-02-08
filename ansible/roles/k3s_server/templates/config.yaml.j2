@@ -8,6 +8,7 @@ write-kubeconfig-mode: "0644"
 # Bind to Netbird VPN IP for inter-node communication
 node-ip: {{ netbird_vpn_ip }}
 advertise-address: {{ netbird_vpn_ip }}
+flannel-iface: wt0
 
 # Disable cloud controller (bare metal setup)
 disable-cloud-controller: true

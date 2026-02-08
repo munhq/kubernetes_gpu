@@ -62,20 +62,22 @@
 - name: Wait for Netbird connection
   ansible.builtin.command: netbird status
   register: netbird_status
-  until: "'Connected' in netbird_status.stdout"
+  until: "netbird_status.stdout is defined and 'Connected' in netbird_status.stdout"
   retries: 30
   delay: 2
   changed_when: false
+  when: not ansible_check_mode
 
 - name: Get Netbird VPN IP
   ansible.builtin.shell: |
     netbird status | grep -oP 'NetBird IP:\s*\K[\d.]+'
   register: vpn_ip_raw
   changed_when: false
+  when: not ansible_check_mode
 
 - name: Store Netbird VPN IP as fact
   ansible.builtin.set_fact:
-    netbird_vpn_ip: "{{ vpn_ip_raw.stdout | trim }}"
+    netbird_vpn_ip: "{{ vpn_ip_raw.stdout | trim if vpn_ip_raw.stdout is defined else 'N/A (check mode)' }}"
     cacheable: true
 
 - name: Display Netbird info
@@ -83,4 +85,8 @@
     msg: |
       Netbird connected!
       VPN IP: {{ netbird_vpn_ip }}
+      {% if netbird_status.stdout_lines is defined %}
       Status: {{ netbird_status.stdout_lines[0:3] | join('\n      ') }}
+      {% else %}
+      Status: N/A (check mode)
+      {% endif %}
