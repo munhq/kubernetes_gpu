@@ -2,6 +2,8 @@ apiVersion: ray.io/v1
 kind: RayCluster
 metadata:
   name: {{ .Values.clusterName }}
+  labels:
+    ray.io/cluster: {{ .Values.clusterName }}
 spec:
   rayVersion: {{ .Values.rayVersion | quote }}
 
