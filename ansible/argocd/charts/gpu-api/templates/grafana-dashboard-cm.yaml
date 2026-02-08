@@ -6,6 +6,8 @@ metadata:
   labels:
     grafana_dashboard: "1"
     app: {{ include "gpu-api.name" . }}
+  annotations:
+    k8s-sidecar-target-directory: "Custom"
 data:
   gpu-api.json: |-
 {{ .Files.Get "dashboards/gpu-api.json" | indent 4 }}
