@@ -25,27 +25,8 @@ grafana:
       cpu: 500m
       memory: 512Mi
 
-  # Disable default dashboards - they include irrelevant stuff (macOS, AIX, etcd, etc.)
-  # We'll enable only the ones we actually use below
+  # Disable ALL default dashboards - user will add what they need manually
   defaultDashboardsEnabled: false
-
-  # Enable ONLY relevant default dashboards
-  defaultDashboards:
-    alertmanager: false
-    apiserver: true
-    coredns: true
-    etcd: false  # K3s doesn't expose etcd
-    grafana: true
-    k8sCluster: true
-    k8sResources: true
-    kubelet: true
-    namespace: true
-    node: true
-    persistentvolume: true
-    pod: true
-    prometheus: true
-    proxy: false
-    scheduler: false  # K3s doesn't expose scheduler
 
   # Sidecar auto-discovers ConfigMaps with label grafana_dashboard=1
   sidecar:
