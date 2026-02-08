@@ -10,6 +10,7 @@ metadata:
     grafana_dashboard: "1"
     grafana_folder: "Ray"
   annotations:
+    k8s-sidecar-target-directory: "Ray"
     grafana-folder: "Ray"
 data:
   {{ base $path }}: |
