@@ -6,6 +6,11 @@ grafana:
   enabled: true
   adminPassword: admin  # TODO: Change this password!
 
+  # Disable legacy init container - fsGroup in securityContext handles permissions
+  # The init container is incompatible with K3s local-path provisioner
+  initChownData:
+    enabled: false
+
   # Persist Grafana dashboards
   persistence:
     enabled: true
