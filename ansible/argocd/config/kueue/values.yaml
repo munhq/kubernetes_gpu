@@ -1,7 +1,5 @@
 # Kueue configuration for GPU batch inference workloads
-
-# Deploy to gpu-workloads namespace instead of kueue-system
-namespaceOverride: gpu-workloads
+# Namespace is controlled by ArgoCD ApplicationSet (gpu-workloads)
 
 # Enable integrations
 integrations:
