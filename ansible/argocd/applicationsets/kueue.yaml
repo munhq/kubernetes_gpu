@@ -18,6 +18,8 @@ spec:
     metadata:
       name: 'kueue'
       namespace: argocd
+      annotations:
+        argocd.argoproj.io/sync-wave: "0"
       labels:
         app: kueue
         environment: '{{ .env }}'
