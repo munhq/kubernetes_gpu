@@ -6,5 +6,8 @@ singleNamespaceInstall: true
 watchNamespace:
   - gpu-workloads
 
-# Default values - using upstream defaults
-# Add custom configuration here as needed
+# Enable Prometheus monitoring
+metrics:
+  serviceMonitor:
+    enabled: true
+    interval: 30s

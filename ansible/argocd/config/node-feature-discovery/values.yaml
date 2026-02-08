@@ -2,7 +2,9 @@
 # Minimal config to detect hardware features
 
 # Master component - aggregates features and labels nodes
+# Disabled: workers can label nodes directly without master
 master:
+  enable: false
   tolerations:
     - effect: NoSchedule
       operator: Exists

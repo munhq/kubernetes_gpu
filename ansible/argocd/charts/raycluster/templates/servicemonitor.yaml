@@ -1,0 +1,29 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Values.clusterName }}-head
+  labels:
+    ray.io/cluster: {{ .Values.clusterName }}
+spec:
+  selector:
+    matchLabels:
+      ray.io/cluster: {{ .Values.clusterName }}
+      ray.io/node-type: head
+  endpoints:
+  - port: metrics
+    interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Values.clusterName }}-workers
+  labels:
+    ray.io/cluster: {{ .Values.clusterName }}
+spec:
+  selector:
+    matchLabels:
+      ray.io/cluster: {{ .Values.clusterName }}
+      ray.io/node-type: worker
+  endpoints:
+  - port: metrics
+    interval: 30s

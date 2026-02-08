@@ -9,6 +9,7 @@ spec:
     rayStartParams:
       dashboard-host: '0.0.0.0'
       num-cpus: '0'
+      metrics-export-port: '8080'
     template:
       spec:
         nodeSelector:
@@ -29,6 +30,8 @@ spec:
             name: client
           - containerPort: 8000
             name: serve
+          - containerPort: 8080
+            name: metrics
           resources:
             {{- toYaml .Values.head.resources | nindent 12 }}
 
@@ -39,6 +42,7 @@ spec:
     groupName: gpu-workers
     rayStartParams:
       num-gpus: "1"
+      metrics-export-port: '8080'
     template:
       spec:
         nodeSelector:
