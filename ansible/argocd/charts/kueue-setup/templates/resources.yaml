@@ -1,5 +1,5 @@
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ResourceFlavor
 metadata:
   name: gpu-flavor
@@ -8,7 +8,7 @@ spec:
     nvidia.com/gpu.present: "true"
 
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: ClusterQueue
 metadata:
   name: {{ .Values.clusterQueue.name }}
@@ -35,7 +35,7 @@ spec:
     weight: 1
 
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: LocalQueue
 metadata:
   name: user-queue
@@ -43,7 +43,7 @@ spec:
   clusterQueue: {{ .Values.clusterQueue.name }}
 
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: LocalQueue
 metadata:
   name: high-priority-queue
@@ -51,28 +51,25 @@ spec:
   clusterQueue: {{ .Values.clusterQueue.name }}
 
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: WorkloadPriorityClass
 metadata:
   name: high-priority
-spec:
-  value: 1000
-  description: "High priority for urgent batch jobs"
+value: 1000
+description: "High priority for urgent batch jobs"
 
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: WorkloadPriorityClass
 metadata:
   name: medium-priority
-spec:
-  value: 500
-  description: "Medium priority for standard batch jobs"
+value: 500
+description: "Medium priority for standard batch jobs"
 
 ---
-apiVersion: kueue.x-k8s.io/v1beta1
+apiVersion: kueue.x-k8s.io/v1beta2
 kind: WorkloadPriorityClass
 metadata:
   name: low-priority
-spec:
-  value: 100
-  description: "Low priority for background batch jobs"
+value: 100
+description: "Low priority for background batch jobs"
