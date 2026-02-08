@@ -13,7 +13,7 @@ spec:
             project: infrastructure
             helmRepo: https://kubernetes-sigs.github.io/metrics-server/
             helmChart: metrics-server
-            helmVersion: 3.12.2
+            helmVersion: 3.13.0
   template:
     metadata:
       name: 'metrics-server'

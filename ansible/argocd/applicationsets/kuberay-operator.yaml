@@ -13,7 +13,7 @@ spec:
             project: gpu
             helmRepo: https://ray-project.github.io/kuberay-helm
             helmChart: kuberay-operator
-            helmVersion: 1.2.2
+            helmVersion: 1.5.1
   template:
     metadata:
       name: 'kuberay-operator'

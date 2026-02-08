@@ -13,7 +13,7 @@ spec:
             project: infrastructure
             helmRepo: https://nvidia.github.io/dcgm-exporter/helm-charts
             helmChart: dcgm-exporter
-            helmVersion: 3.6.1
+            helmVersion: 4.7.1
   template:
     metadata:
       name: 'dcgm-exporter'
