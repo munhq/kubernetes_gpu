@@ -53,4 +53,4 @@ env:
   - name: REDIS_URL
     value: "dragonfly.gpu-workloads.svc.cluster.local:6379"
   - name: JOB_TTL_SECONDS
-    value: "3600"
+    value: "604800"
