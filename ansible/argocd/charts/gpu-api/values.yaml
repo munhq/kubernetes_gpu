@@ -47,9 +47,9 @@ env:
   - name: RAY_SERVE_URL
     value: "http://raycluster-batch-inference-serve-svc:8000"
   - name: DEFAULT_MODEL
-    value: "Qwen/Qwen2.5-0.5B-Instruct"
+    value: "qwen2.5-0.5b-instruct"
   - name: MAX_CONCURRENT
-    value: "4"
+    value: "120"
   - name: REDIS_URL
     value: "dragonfly.gpu-workloads.svc.cluster.local:6379"
   - name: JOB_TTL_SECONDS
