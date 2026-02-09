@@ -9,7 +9,7 @@ spec:
     applications:
     - name: vllm
       import_path: ray.serve.llm:build_openai_app
-      route_prefix: "/v1/completions"
+      route_prefix: "/"
       args:
         llm_configs:
         - model_loading_config:
