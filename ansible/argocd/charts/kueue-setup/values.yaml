@@ -1,5 +1,0 @@
-clusterQueue:
-  name: cluster-queue
-  cpu: 8
-  memory: 32Gi
-  gpus: 4
