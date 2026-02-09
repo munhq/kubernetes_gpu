@@ -48,6 +48,16 @@
     path: /usr/local/bin/k3s
   register: k3s_binary
 
+- name: Remove stale node entry from server (handles re-provisioned servers)
+  ansible.builtin.command: >
+    kubectl delete node {{ inventory_hostname }} --ignore-not-found
+  delegate_to: "{{ groups['k3s_server'][0] }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: "'deleted' in stale_node_cleanup.stdout"
+  register: stale_node_cleanup
+  when: not k3s_binary.stat.exists
+
 - name: Download K3s install script
   ansible.builtin.get_url:
     url: https://get.k3s.io
