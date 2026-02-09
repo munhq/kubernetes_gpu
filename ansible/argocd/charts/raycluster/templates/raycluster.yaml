@@ -23,6 +23,9 @@ spec:
         containers:
         - name: ray-head
           image: "{{ .Values.head.image }}"
+          env:
+          - name: RAY_SERVE_HTTP_HOST
+            value: "0.0.0.0"
           ports:
           - containerPort: 6379
             name: gcs
