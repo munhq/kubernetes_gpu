@@ -11,8 +11,9 @@ replicas: 1
 args:
   - --maxmemory=1024mb
   # Note: cache_mode removed - Ray GCS needs persistence, not eviction
+  - --nodf_snapshot_format  # Use Redis-compatible RDB format for Ray GCS
   - --dbfilename=dump.rdb
-  - --save_schedule=*:*  # Snapshot every minute (Dragonfly's RDB equivalent)
+  - --save_schedule=*:*  # Snapshot every minute for Ray GCS fault tolerance
 
 # Snapshot configuration with persistent storage
 # Ray GCS fault tolerance requires RDB-style snapshots to PVC
