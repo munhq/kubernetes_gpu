@@ -22,7 +22,7 @@ curl -X POST http://localhost:8000/v1/batches \
 curl http://localhost:8000/v1/batches/{job_id} -H "X-API-Key: your-api-key"
 ```
 
-Jobs go through a priority queue (high/medium/low), get dispatched to a persistent vLLM cluster via Ray Serve, and results are stored in Dragonfly (Redis-compatible) for 7 days.
+Jobs fire immediately to vLLM via Ray Serve — no queuing, no cold starts. The model stays loaded in GPU memory. Results are persisted in Dragonfly (Redis-compatible) for 7 days.
 
 ## Architecture
 
@@ -38,7 +38,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams.
 
 | Component | What | Where |
 |---|---|---|
-| GPU API | Go REST API — auth, priority queue, Prometheus metrics | `gpu-api/` |
+| GPU API | Go REST API — auth, Prometheus metrics, fires jobs to Ray Serve | `gpu-api/` |
 | RayService | Persistent vLLM cluster via KubeRay operator | `ansible/argocd/charts/raycluster/` |
 | Dragonfly | Job persistence (DB 1) + Ray GCS fault tolerance (DB 0) | `ansible/argocd/charts/dragonfly/` |
 | Ansible | Infrastructure provisioning — base, VPN, NVIDIA, K3s, ArgoCD | `ansible/roles/` |
@@ -46,9 +46,11 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams.
 
 ## Docs
 
-- [SETUP.md](SETUP.md) — deploy from scratch
+- [DEPLOYMENT.md](DEPLOYMENT.md) — deploy from scratch
 - [ARCHITECTURE.md](ARCHITECTURE.md) — current system + future multi-datacenter vision
 - [questions.md](questions.md) — technical Q&A (output format, storage, load balancing, KPIs, KubeRay integration)
+- [decissions.md](decissions.md) — why K3s, why Ansible, why not Kueue, etc.
+- [future.md](future.md) — scaling thoughts (Kueue, NATS, multi-cluster)
 - [REQUIREMENTS_VALIDATION.md](REQUIREMENTS_VALIDATION.md) — how requirements map to implementation
 - [gpu-api/README.md](gpu-api/README.md) — API reference
 - [ansible/README.md](ansible/README.md) — playbook reference
@@ -75,4 +77,4 @@ K3s v1.35 / KubeRay v1.5.1 / vLLM via ray-llm:2.53.0 / Go 1.22 / Dragonfly v1.35
 
 ## Metrics
 
-`GET /metrics` exposes 8 Prometheus metrics: queue depth, active/total slots, queue wait time, inference duration, job status counts, HTTP latency, submission throughput, active jobs. Plus DCGM exporter for per-GPU memory/utilization/temperature.
+`GET /metrics` exposes 10 Prometheus metrics: active jobs, job duration, inference duration, job status counts, HTTP latency, submission throughput, submissions by priority, token counts, tokens per request, batch size. Plus DCGM exporter for per-GPU memory/utilization/temperature.

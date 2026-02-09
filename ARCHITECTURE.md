@@ -27,7 +27,7 @@ graph LR
 
 ### Application Architecture — Request Flow
 
-How a batch inference job moves through the system.
+How a batch inference job moves through the system. No queue — jobs fire immediately.
 
 ```mermaid
 graph TD
@@ -35,10 +35,6 @@ graph TD
 
     subgraph gpu_workloads["Namespace: gpu-workloads"]
         GPU_API["GPU API (Go)<br/>NodePort 30800<br/>ghcr.io/munhq/gpu-api"]
-
-        subgraph queue_box["In-Process Priority Queue"]
-            QUEUE["Min-heap dispatcher<br/>high=1000 / medium=500 / low=100<br/>FIFO within same priority<br/>Max 120 concurrent slots"]
-        end
 
         DRAGONFLY["Dragonfly v1.35.0<br/>Redis-compatible in-memory store<br/>1Gi max memory, 5Gi PVC<br/>RDB snapshots every minute"]
 
@@ -55,20 +51,18 @@ graph TD
         end
     end
 
-    GPU_API -->|"1. Enqueue job"| QUEUE
-    QUEUE -->|"2. Persist state<br/>(QUEUED → RUNNING → SUCCEEDED)<br/>DB 1, TTL 7 days"| DRAGONFLY
-    QUEUE -->|"3. POST /v1/completions<br/>{model, prompt[], max_tokens}"| RAY_HEAD
-    RAY_HEAD -->|"4. Route to replica<br/>(continuous batching)"| VLLM_W1
-    RAY_HEAD -->|"4. Route to replica<br/>(continuous batching)"| VLLM_W2
+    GPU_API -->|"1. Fire goroutine +<br/>persist RUNNING to DB 1"| DRAGONFLY
+    GPU_API -->|"2. POST /v1/completions<br/>{model, prompt[], max_tokens}"| RAY_HEAD
+    RAY_HEAD -->|"3. Route to replica<br/>(continuous batching)"| VLLM_W1
+    RAY_HEAD -->|"3. Route to replica<br/>(continuous batching)"| VLLM_W2
     RAY_HEAD -->|"GCS fault tolerance<br/>DB 0 (head HA)"| DRAGONFLY
 
     USER -->|"curl GET /v1/batches/{id}"| GPU_API
-    GPU_API -->|"5. Check memory first<br/>then fallback to Redis"| DRAGONFLY
+    GPU_API -->|"4. Check memory (in-flight)<br/>then fallback to Redis (completed)"| DRAGONFLY
 
     style GPU_API fill:#e94560,color:#fff
     style DRAGONFLY fill:#533483,color:#fff
     style RAY_HEAD fill:#16213e,color:#fff
-    style QUEUE fill:#0f3460,color:#fff
 ```
 
 ### Dragonfly — Dual Purpose Store
@@ -148,7 +142,7 @@ graph TD
     end
 
     subgraph scrape_targets["Scrape Targets"]
-        T1["GPU API :8000/metrics<br/>queue depth, latency, throughput,<br/>tokens, batch size, job status"]
+        T1["GPU API :8000/metrics<br/>active jobs, duration, inference time,<br/>tokens, batch size, job status"]
         T2["DCGM Exporter :9400<br/>GPU memory, utilization,<br/>temperature (per GPU)"]
         T3["Ray Head :8080<br/>task count, object store,<br/>GCS stats"]
         T4["node-exporter :9100<br/>CPU, memory, disk, network"]
@@ -203,7 +197,7 @@ Every component deployed in the cluster:
 | **K3s server** | - | utility-server | Kubernetes control plane |
 | **K3s agent** | - | gpu-node-01, gpu-node-02 | Worker nodes with GPU taint |
 | **ArgoCD v2.13** | argocd | utility-server | GitOps, App of Apps, GitHub App auth |
-| **GPU API (Go)** | gpu-workloads | utility-server | REST API, priority queue, auth |
+| **GPU API (Go)** | gpu-workloads | utility-server | REST API, auth, fires jobs to Ray Serve |
 | **Dragonfly v1.35** | gpu-workloads | utility-server | Job persistence (DB1) + Ray GCS (DB0) |
 | **Dragonfly Operator v1.3.1** | dragonfly-system | utility-server | Manages Dragonfly CR lifecycle |
 | **Ray Head** | gpu-workloads | gpu-node (tolerates taint) | Serve proxy, dashboard, GCS |
@@ -297,7 +291,7 @@ graph TB
 
 | Concern | Current | Future |
 |---|---|---|
-| **Job routing** | Single GPU API, in-process priority heap | Global scheduler, cost-aware, GPU-type matching |
+| **Job routing** | Single GPU API, fires directly to Ray Serve | Global scheduler, cost-aware, GPU-type matching |
 | **Cross-cluster** | N/A (single cluster) | NATS JetStream job bus |
 | **Storage** | Dragonfly for jobs + Ray GCS | PostgreSQL (audit/billing) + Dragonfly per cluster |
 | **Models** | Single model (Qwen2.5-0.5B), hostPath | Model registry (S3), multiple models per cluster |

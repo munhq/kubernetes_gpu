@@ -163,7 +163,7 @@ curl -X POST http://localhost:8000/v1/batches \
   }'
 ```
 
-Returns `{"job_id": "...", "status": "QUEUED", "priority": "high"}`. Poll with:
+Returns `{"job_id": "...", "status": "RUNNING", "priority": "high"}`. Poll with:
 
 ```bash
 curl http://localhost:8000/v1/batches/{job_id} -H "X-API-Key: sk-your-api-key"

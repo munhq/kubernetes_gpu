@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
 Load test for GPU API batch inference endpoint.
-Sends 100 concurrent batch jobs through the GPU API priority queue to demonstrate:
-- Priority-based scheduling (high jobs preempt low)
-- Concurrent GPU slot utilization (max_concurrent workers)
-- Queue depth under load
-- End-to-end latency through the full stack (API → queue → vLLM → results)
+Sends 100 concurrent batch jobs to demonstrate:
+- Concurrent request handling (all jobs fire to vLLM immediately)
+- Ray Serve load balancing across vLLM replicas
+- End-to-end latency through the full stack (API → Ray Serve → vLLM → results)
+- Throughput under sustained load
 
 Usage:
     # Port-forward the GPU API service first:
