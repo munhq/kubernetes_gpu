@@ -12,3 +12,12 @@ tolerations:
   - key: nvidia.com/gpu
     operator: Exists
     effect: NoSchedule
+
+# Resource limits - increased memory for DCGM with different GPU types
+resources:
+  limits:
+    cpu: 200m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
