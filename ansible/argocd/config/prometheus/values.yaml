@@ -33,6 +33,7 @@ grafana:
   additionalDataSources:
     - name: GPU-API
       type: yesoreyeram-infinity-datasource
+      uid: GPU-API
       access: proxy
       url: http://gpu-api.gpu-workloads.svc.cluster.local:8000
       isDefault: false
