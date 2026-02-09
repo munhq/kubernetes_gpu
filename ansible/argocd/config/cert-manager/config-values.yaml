@@ -1,5 +1,0 @@
-# Values for cert-manager-config chart (ClusterIssuers)
-# This is separate from the main cert-manager Helm chart values
-
-# Email for Let's Encrypt notifications
-acmeEmail: admin@example.com
