@@ -1,11 +1,11 @@
 # KubeRay Batch Inference
 
-Distributed batch inference system using KubeRay, vLLM, and K3s on GPU workers.
+Distributed batch inference for Qwen2.5-0.5B using KubeRay, vLLM, and K3s across GPU workers.
 
-## Quick Start
+## What it does
 
 ```bash
-# Submit batch inference job
+# Submit a batch job
 curl -X POST http://localhost:8000/v1/batches \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your-api-key" \
@@ -18,96 +18,61 @@ curl -X POST http://localhost:8000/v1/batches \
     "max_tokens": 50
   }'
 
-# Check job status
-curl http://localhost:8000/v1/batches/{job_id} \
-  -H "X-API-Key: your-api-key"
+# Poll for results
+curl http://localhost:8000/v1/batches/{job_id} -H "X-API-Key: your-api-key"
 ```
+
+Jobs go through a priority queue (high/medium/low), get dispatched to a persistent vLLM cluster via Ray Serve, and results are stored in Dragonfly (Redis-compatible) for 7 days.
 
 ## Architecture
 
-- **Control Plane**: K3s server on Hetzner (utility-server)
-- **GPU Workers**: 2x RunPod instances (4 GPUs total, RTX 4060 Ti / 5060 Ti)
-- **Networking**: Netbird VPN overlay for pod-to-pod communication
-- **GitOps**: ArgoCD with App of Apps pattern
-- **Model**: Qwen/Qwen2.5-0.5B-Instruct via Ray Serve + vLLM
-- **API**: Go service with priority queue, API key authentication, and Prometheus metrics
+- **Control plane**: K3s on Hetzner (utility-server) — runs ArgoCD, GPU API, Dragonfly, monitoring
+- **GPU workers**: 2x RunPod instances, 2x RTX 5060 Ti each (4 GPUs total)
+- **Networking**: Netbird VPN overlay — all K3s traffic goes through encrypted WireGuard tunnel
+- **Model**: Qwen/Qwen2.5-0.5B-Instruct, always loaded in GPU memory (no cold starts)
+- **GitOps**: ArgoCD with App of Apps pattern, 11 ApplicationSets
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams.
 
 ## Components
 
-| Component | Purpose | Location |
-|-----------|---------|----------|
-| **gpu-api** | REST API for batch job submission | `gpu-api/` |
-| **RayService** | Persistent vLLM inference cluster | `argocd/charts/raycluster/` |
-| **Ansible** | Infrastructure provisioning | `ansible/` |
-| **ArgoCD** | GitOps application deployment | `argocd/` |
-| **Monitoring** | Prometheus, Grafana, DCGM | Deployed via ArgoCD |
+| Component | What | Where |
+|---|---|---|
+| GPU API | Go REST API — auth, priority queue, Prometheus metrics | `gpu-api/` |
+| RayService | Persistent vLLM cluster via KubeRay operator | `ansible/argocd/charts/raycluster/` |
+| Dragonfly | Job persistence (DB 1) + Ray GCS fault tolerance (DB 0) | `ansible/argocd/charts/dragonfly/` |
+| Ansible | Infrastructure provisioning — base, VPN, NVIDIA, K3s, ArgoCD | `ansible/roles/` |
+| Monitoring | Prometheus, Grafana, DCGM exporter, node-exporter | Deployed via ArgoCD |
 
-## Documentation
+## Docs
 
-- **[SETUP.md](SETUP.md)** - Step-by-step deployment instructions
-- **[questions.md](questions.md)** - Technical Q&A addressing architecture decisions
-- **[DECISIONS.md](DECISIONS.md)** - Architecture evolution and trade-offs
-- **[architecture.md](architecture.md)** - System architecture overview
-- **[gpu-api/README.md](gpu-api/README.md)** - API reference and configuration
-- **[ansible/README.md](ansible/README.md)** - Ansible playbook reference
+- [SETUP.md](SETUP.md) — deploy from scratch
+- [ARCHITECTURE.md](ARCHITECTURE.md) — current system + future multi-datacenter vision
+- [questions.md](questions.md) — technical Q&A (output format, storage, load balancing, KPIs, KubeRay integration)
+- [REQUIREMENTS_VALIDATION.md](REQUIREMENTS_VALIDATION.md) — how requirements map to implementation
+- [gpu-api/README.md](gpu-api/README.md) — API reference
+- [ansible/README.md](ansible/README.md) — playbook reference
 
-## Key Features
-
-✅ **API Key Authentication** - X-API-Key header validation
-✅ **Priority Queue** - High/medium/low priority job ordering
-✅ **Persistent vLLM** - No cold starts, model stays warm
-✅ **Job Persistence** - Redis/Dragonfly for job state across API restarts
-✅ **Prometheus Metrics** - 8 metrics for monitoring queue depth, latency, GPU utilization
-✅ **GitOps** - Full declarative infrastructure via ArgoCD
-✅ **GPU Monitoring** - DCGM exporter + Grafana dashboards
-
-## Repository Structure
+## Repo structure
 
 ```
-.
-├── gpu-api/              # Go REST API
-│   ├── main.go
-│   ├── handlers.go       # API endpoints
-│   ├── queue.go          # Priority queue + job dispatcher
-│   ├── store.go          # Redis persistence
-│   └── Dockerfile
-├── ansible/              # Infrastructure as Code
-│   ├── plays/            # Playbooks (infrastructure → platform → argocd)
-│   ├── roles/            # Ansible roles (base, k3s, netbird, nvidia)
-│   └── inventory/        # Server IPs, credentials (vault)
-├── argocd/
-│   ├── applicationsets/  # ArgoCD ApplicationSet definitions
-│   ├── charts/           # Helm charts (raycluster, dragonfly, kueue-setup)
-│   └── config/           # Helm values per application
-├── questions.md          # Technical architecture Q&A
-├── DECISIONS.md          # Why we chose this architecture
-└── SETUP.md              # Deployment guide
+gpu-api/                  # Go REST API
+  main.go, handlers.go, queue.go, store.go, metrics.go, ray.go, Dockerfile
+
+ansible/
+  plays/                  # infrastructure.yml → platform.yml → argocd.yml
+  roles/                  # base, netbird, nvidia_runtime, k3s_server, k3s_agent, argocd
+  inventory/              # hosts, vault-encrypted secrets
+  argocd/
+    applicationsets/      # 11 ArgoCD ApplicationSet manifests
+    charts/               # Custom Helm charts (gpu-api, raycluster, dragonfly)
+    config/               # Helm values overrides per app
 ```
 
-## Tech Stack
+## Tech stack
 
-- **K3s** (v1.35) - Lightweight Kubernetes
-- **KubeRay** (v1.2.2) - Ray on Kubernetes
-- **vLLM** (via ray-llm:2.53.0-py311-cu128) - LLM inference engine
-- **Go** (1.22) - API service
-- **Dragonfly** (v1.35) - Redis-compatible in-memory store
-- **Prometheus + Grafana** - Monitoring stack
-- **ArgoCD** (v2.13) - GitOps deployment
-- **Ansible** - Infrastructure automation
-- **Netbird** - VPN overlay network
+K3s v1.35 / KubeRay v1.5.1 / vLLM via ray-llm:2.53.0 / Go 1.22 / Dragonfly v1.35 / Prometheus + Grafana / ArgoCD v2.13 / Ansible / Netbird VPN
 
 ## Metrics
 
-Exposed at `GET /metrics`:
-
-- `gpu_api_queue_depth` - Jobs waiting in queue
-- `gpu_api_gpus_active` - Concurrent inference slots in use
-- `gpu_api_job_duration_seconds` - End-to-end inference time
-- `gpu_api_jobs_by_status_total` - Success/failure counts
-- `gpu_api_queue_wait_seconds` - Time from enqueue to dispatch
-
-See [questions.md](questions.md) for complete KPI analysis.
-
-## License
-
-MIT
+`GET /metrics` exposes 8 Prometheus metrics: queue depth, active/total slots, queue wait time, inference duration, job status counts, HTTP latency, submission throughput, active jobs. Plus DCGM exporter for per-GPU memory/utilization/temperature.
