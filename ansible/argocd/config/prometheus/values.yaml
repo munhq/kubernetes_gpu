@@ -25,9 +25,11 @@ grafana:
       cpu: 500m
       memory: 512Mi
 
-  # Install Grafana plugins
-  plugins:
-    - yesoreyeram-infinity-datasource
+  # Install Grafana plugins synchronously before server starts
+  # _SYNC variant blocks startup until plugin is installed, ensuring it's
+  # available when datasource provisioning runs (avoids race condition)
+  env:
+    GF_PLUGINS_PREINSTALL_SYNC: yesoreyeram-infinity-datasource
 
   # Additional datasources beyond Prometheus
   additionalDataSources:
