@@ -1,80 +1,112 @@
 apiVersion: ray.io/v1
-kind: RayCluster
+kind: RayService
 metadata:
   name: {{ .Values.clusterName }}
   labels:
     ray.io/cluster: {{ .Values.clusterName }}
 spec:
-  rayVersion: {{ .Values.rayVersion | quote }}
+  serveConfigV2: |
+    applications:
+    - name: vllm
+      import_path: ray.serve.llm:build_openai_app
+      route_prefix: "/v1/completions"
+      args:
+        llm_configs:
+        - model_loading_config:
+            model_id: {{ .Values.serve.modelId }}
+            model_source: {{ .Values.serve.modelSource }}
+          engine_kwargs:
+            dtype: {{ .Values.serve.dtype | default "auto" }}
+            max_model_len: {{ .Values.serve.maxModelLen | default 1024 }}
+            device: auto
+            gpu_memory_utilization: {{ .Values.serve.gpuMemoryUtilization | default 0.75 }}
+            trust_remote_code: true
+          deployment_config:
+            autoscaling_config:
+              min_replicas: {{ .Values.serve.minReplicas | default 1 }}
+              max_replicas: {{ .Values.serve.maxReplicas | default 2 }}
+              target_ongoing_requests: {{ .Values.serve.targetOngoingRequests | default 8 }}
+            max_ongoing_requests: {{ .Values.serve.maxOngoingRequests | default 16 }}
 
-  headGroupSpec:
-    rayStartParams:
-      dashboard-host: '0.0.0.0'
-      num-cpus: '0'
-      metrics-export-port: '8080'
-    template:
-      spec:
-        nodeSelector:
-          nvidia.com/gpu.present: "true"
-        tolerations:
-        - key: nvidia.com/gpu
-          operator: Exists
-          effect: NoSchedule
-        containers:
-        - name: ray-head
-          image: "{{ .Values.head.image }}"
-          env:
-          - name: RAY_SERVE_HTTP_HOST
-            value: "0.0.0.0"
-          ports:
-          - containerPort: 6379
-            name: gcs
-          - containerPort: 8265
-            name: dashboard
-          - containerPort: 10001
-            name: client
-          - containerPort: 8000
-            name: serve
-          - containerPort: 8080
-            name: metrics
-          resources:
-            {{- toYaml .Values.head.resources | nindent 12 }}
+  rayClusterConfig:
+    rayVersion: {{ .Values.rayVersion | quote }}
 
-  workerGroupSpecs:
-  - replicas: {{ .Values.workers.replicas }}
-    minReplicas: {{ .Values.workers.minReplicas }}
-    maxReplicas: {{ .Values.workers.maxReplicas }}
-    groupName: gpu-workers
-    rayStartParams:
-      num-gpus: {{ .Values.workers.gpusPerWorker | default 1 | quote }}
-      metrics-export-port: '8080'
-    template:
-      spec:
-        nodeSelector:
-          nvidia.com/gpu.present: "true"
-        tolerations:
-        - key: nvidia.com/gpu
-          operator: Exists
-          effect: NoSchedule
-        containers:
-        - name: ray-worker
-          image: "{{ .Values.workers.image }}"
-          lifecycle:
-            preStop:
-              exec:
-                command: ["/bin/sh", "-c", "ray stop"]
-          resources:
-            {{- toYaml .Values.workers.resources | nindent 12 }}
-          volumeMounts:
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: '0.0.0.0'
+        num-cpus: '0'
+        metrics-export-port: '8080'
+      template:
+        spec:
+          nodeSelector:
+            nvidia.com/gpu.present: "true"
+          tolerations:
+          - key: nvidia.com/gpu
+            operator: Exists
+            effect: NoSchedule
+          containers:
+          - name: ray-head
+            image: "{{ .Values.head.image }}"
+            env:
+            - name: RAY_SERVE_HTTP_HOST
+              value: "0.0.0.0"
+            - name: HF_HOME
+              value: /opt/models/huggingface
+            - name: TRANSFORMERS_CACHE
+              value: /opt/models/huggingface
+            - name: VLLM_WORKER_MULTIPROC_METHOD
+              value: spawn
+            ports:
+            - containerPort: 6379
+              name: gcs
+            - containerPort: 8265
+              name: dashboard
+            - containerPort: 10001
+              name: client
+            - containerPort: 8000
+              name: serve
+            - containerPort: 8080
+              name: metrics
+            resources:
+              {{- toYaml .Values.head.resources | nindent 14 }}
+
+    workerGroupSpecs:
+    - replicas: {{ .Values.workers.replicas }}
+      minReplicas: {{ .Values.workers.minReplicas }}
+      maxReplicas: {{ .Values.workers.maxReplicas }}
+      groupName: gpu-workers
+      rayStartParams:
+        num-gpus: {{ .Values.workers.gpusPerWorker | default 1 | quote }}
+        metrics-export-port: '8080'
+      template:
+        spec:
+          nodeSelector:
+            nvidia.com/gpu.present: "true"
+          tolerations:
+          - key: nvidia.com/gpu
+            operator: Exists
+            effect: NoSchedule
+          containers:
+          - name: ray-worker
+            image: "{{ .Values.workers.image }}"
+            lifecycle:
+              preStop:
+                exec:
+                  command: ["/bin/sh", "-c", "ray stop"]
+            resources:
+              {{- toYaml .Values.workers.resources | nindent 14 }}
+            volumeMounts:
+            - name: models
+              mountPath: /opt/models
+            env:
+            - name: HF_HOME
+              value: /opt/models/huggingface
+            - name: TRANSFORMERS_CACHE
+              value: /opt/models/huggingface
+            - name: VLLM_WORKER_MULTIPROC_METHOD
+              value: spawn
+          volumes:
           - name: models
-            mountPath: /opt/models
-          env:
-          - name: HF_HOME
-            value: /opt/models/huggingface
-          - name: TRANSFORMERS_CACHE
-            value: /opt/models/huggingface
-        volumes:
-        - name: models
-          hostPath:
-            path: {{ .Values.workers.modelsHostPath }}
-            type: Directory
+            hostPath:
+              path: {{ .Values.workers.modelsHostPath }}
+              type: DirectoryOrCreate

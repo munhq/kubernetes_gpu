@@ -1,6 +1,6 @@
 apiVersion: v2
 name: raycluster
-description: Persistent RayCluster for batch GPU inference
+description: RayService with persistent vLLM serving for batch GPU inference
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "2.53.0"

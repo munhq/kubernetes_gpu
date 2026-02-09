@@ -44,9 +44,9 @@ env:
       secretKeyRef:
         name: gpu-api-secret
         key: api-key
+  - name: RAY_SERVE_URL
+    value: "http://raycluster-batch-inference-serve-svc:8000"
   - name: DEFAULT_MODEL
-    value: "Qwen/Qwen2.5-0.5B-Instruct"
-  - name: VLLM_MODEL
     value: "Qwen/Qwen2.5-0.5B-Instruct"
   - name: MAX_CONCURRENT
     value: "4"
