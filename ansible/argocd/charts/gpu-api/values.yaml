@@ -46,9 +46,7 @@ env:
         key: api-key
   - name: DEFAULT_MODEL
     value: "Qwen/Qwen2.5-0.5B-Instruct"
-  - name: NAMESPACE
-    value: "gpu-workloads"
-  - name: RAY_CLUSTER_NAME
-    value: "raycluster-batch-inference"
-  - name: KUEUE_QUEUE_NAME
-    value: "user-queue"
+  - name: VLLM_MODEL
+    value: "Qwen/Qwen2.5-0.5B-Instruct"
+  - name: MAX_CONCURRENT
+    value: "4"
