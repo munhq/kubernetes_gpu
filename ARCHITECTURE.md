@@ -292,28 +292,6 @@ graph TB
     style spot fill:#533483,color:#fff
 ```
 
-### Job Routing Logic
-
-```mermaid
-flowchart TD
-    REQ["Incoming Request"] --> PARSE["Parse model + priority"]
-
-    PARSE --> MATCH{"Model size →<br/>GPU requirement?"}
-
-    MATCH -->|"Small: 0.5B-7B<br/>needs 1x 16GB"| SMALL["Candidates: EU, Spot"]
-    MATCH -->|"Medium: 13B-70B<br/>needs 4-8x 80GB"| MEDIUM["Candidates: EU (A100), US (H100)"]
-    MATCH -->|"Large: 70B+<br/>needs 8x+ H100"| LARGE["Candidate: US only"]
-
-    SMALL & MEDIUM & LARGE --> COST{"Cheapest cluster<br/>with available slots?"}
-
-    COST -->|"Spot available"| SPOT["Route to Spot Cluster<br/>(cheapest, preemptible)"]
-    COST -->|"On-demand available"| ONDEMAND["Route to nearest cluster"]
-    COST -->|"All full"| QUEUE["Queue in NATS<br/>with backpressure"]
-
-    SPOT & ONDEMAND --> EXEC["Execute inference"]
-    QUEUE -->|"Slot freed"| EXEC
-    EXEC --> RESULT["Return via NATS → Gateway → Client"]
-```
 
 ### Current vs Future
 
