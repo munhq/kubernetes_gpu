@@ -13,10 +13,10 @@ serve:
   dtype: auto
   maxModelLen: 1024
   gpuMemoryUtilization: 0.75
-  minReplicas: 1
-  maxReplicas: 2
+  minReplicas: 2
+  maxReplicas: 4
   targetOngoingRequests: 8
-  maxOngoingRequests: 16
+  maxOngoingRequests: 64
 
 head:
   # ray-llm image includes ray.serve.llm module required by serveConfigV2
