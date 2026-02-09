@@ -3,7 +3,7 @@
 
 # Node selector to only deploy on GPU nodes
 nodeSelector:
-  nvidia.com/gpu: "present"
+  nvidia.com/gpu.present: "true"
 
 # Tolerations for GPU nodes with taints
 tolerations:
