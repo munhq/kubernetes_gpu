@@ -25,6 +25,19 @@ grafana:
       cpu: 500m
       memory: 512Mi
 
+  # Install Grafana plugins
+  plugins:
+    - yesoreyeram-infinity-datasource
+
+  # Additional datasources beyond Prometheus
+  additionalDataSources:
+    - name: GPU-API
+      type: yesoreyeram-infinity-datasource
+      access: proxy
+      url: http://gpu-api.gpu-workloads.svc.cluster.local:8000
+      isDefault: false
+      editable: true
+
   # Disable ALL default dashboards - user will add what they need manually
   defaultDashboardsEnabled: false
 
