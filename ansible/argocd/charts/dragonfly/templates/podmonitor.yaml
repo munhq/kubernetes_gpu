@@ -1,0 +1,21 @@
+# PodMonitor for Dragonfly metrics
+# Scrapes Prometheus metrics from Dragonfly admin port (9999)
+
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ .Values.name }}
+  labels:
+    app: {{ .Values.name }}
+    app.kubernetes.io/name: {{ .Values.name }}
+    prometheus: kube-prometheus
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}
+  podTargetLabels:
+    - app
+  podMetricsEndpoints:
+  - port: admin
+    interval: 30s
+    path: /metrics
