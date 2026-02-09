@@ -2,372 +2,331 @@
 
 ## Current Architecture
 
-What we actually built and deployed.
+### Physical Topology
+
+3 nodes across 2 providers, connected by Netbird VPN.
 
 ```mermaid
-graph TB
-    subgraph Internet
-        User["User / Client"]
+graph LR
+    subgraph Hetzner["Hetzner Cloud (Frankfurt)"]
+        UTIL["utility-server<br/>203.0.113.10<br/>K3s server + control plane<br/>No GPU"]
     end
 
-    subgraph Hetzner["Hetzner Cloud — utility-server (203.0.113.10)"]
-        subgraph K3sServer["K3s Server (control plane)"]
-            API_SERVER["K8s API Server"]
-        end
-
-        subgraph ArgoCD_NS["Namespace: argocd"]
-            ARGOCD["ArgoCD<br/>App of Apps pattern<br/>GitHub App auth"]
-        end
-
-        subgraph Monitoring_NS["Namespace: monitoring"]
-            PROM["Prometheus<br/>30d retention, 50Gi PVC"]
-            GRAFANA["Grafana<br/>Infinity plugin, 10Gi PVC"]
-            ALERT["AlertManager<br/>10Gi PVC"]
-            KSM["kube-state-metrics"]
-            NODE_EXP["node-exporter"]
-        end
-
-        subgraph GPU_WL["Namespace: gpu-workloads"]
-            GPU_API["GPU API (Go)<br/>NodePort 30800<br/>Priority queue (heap)<br/>API key auth"]
-            DRAGONFLY["Dragonfly v1.35<br/>Redis-compatible<br/>1Gi mem, 5Gi PVC<br/>RDB snapshots/min"]
-            RAY_HEAD["Ray Head<br/>ray-llm:2.53.0<br/>Serve proxy (no GPU)<br/>Dashboard :8265"]
-            KUBERAY["KubeRay Operator"]
-            DFOP["Dragonfly Operator"]
-        end
-
-        subgraph KubeSys["Namespace: kube-system"]
-            NFD["Node Feature Discovery<br/>Labels GPU nodes"]
-            LPP["Local Path Provisioner<br/>/opt/kube/data"]
-        end
-
-        NDP_SRV["NVIDIA Device Plugin"]
-        METRICS_SRV["Metrics Server"]
+    subgraph RunPod["RunPod (EU)"]
+        GPU1["gpu-node-01<br/>203.0.113.20:43508<br/>K3s agent<br/>2x RTX 5060 Ti 16GB"]
+        GPU2["gpu-node-02<br/>203.0.113.20:59715<br/>K3s agent<br/>2x RTX 5060 Ti 16GB"]
     end
 
-    subgraph Netbird["Netbird VPN Overlay (wt0 interface)"]
-        VPN_TUNNEL["Encrypted tunnel<br/>K3s flannel-iface: wt0<br/>node-ip: VPN IP"]
-    end
-
-    subgraph RunPod1["RunPod — gpu-node-01 (203.0.113.20:43508)"]
-        subgraph Worker1["Ray Worker Pod"]
-            VLLM1["vLLM Replica x2<br/>Qwen2.5-0.5B-Instruct<br/>ray-llm:2.53.0"]
-        end
-        GPU1["2x RTX 5060 Ti 16GB"]
-        DCGM1["DCGM Exporter"]
-        NDP1["NVIDIA Device Plugin"]
-        NODE_EXP1["node-exporter"]
-        MODELS1["/opt/gpu — HuggingFace cache"]
-    end
-
-    subgraph RunPod2["RunPod — gpu-node-02 (203.0.113.20:59715)"]
-        subgraph Worker2["Ray Worker Pod"]
-            VLLM2["vLLM Replica x2<br/>Qwen2.5-0.5B-Instruct<br/>ray-llm:2.53.0"]
-        end
-        GPU2["2x RTX 5060 Ti 16GB"]
-        DCGM2["DCGM Exporter"]
-        NDP2["NVIDIA Device Plugin"]
-        NODE_EXP2["node-exporter"]
-        MODELS2["/opt/gpu — HuggingFace cache"]
-    end
-
-    %% User flow
-    User -->|"POST /v1/batches<br/>X-API-Key header"| GPU_API
-    User -->|"GET /v1/batches/{id}"| GPU_API
-
-    %% GPU API internals
-    GPU_API -->|"Enqueue job<br/>priority heap"| GPU_API
-    GPU_API -->|"Persist job state<br/>DB 1, 7d TTL"| DRAGONFLY
-    GPU_API -->|"POST /v1/completions<br/>via serve-svc:8000"| RAY_HEAD
-
-    %% Ray cluster
-    RAY_HEAD -->|"Route to vLLM replica"| VLLM1
-    RAY_HEAD -->|"Route to vLLM replica"| VLLM2
-    RAY_HEAD -->|"GCS fault tolerance<br/>DB 0"| DRAGONFLY
-    VLLM1 --> GPU1
-    VLLM2 --> GPU2
-    VLLM1 --> MODELS1
-    VLLM2 --> MODELS2
-
-    %% Networking
-    K3sServer <-->|"K3s control plane"| VPN_TUNNEL
-    VPN_TUNNEL <-->|"K3s agent join"| RunPod1
-    VPN_TUNNEL <-->|"K3s agent join"| RunPod2
-
-    %% Operators
-    KUBERAY -->|"Manages RayService CRD"| RAY_HEAD
-    DFOP -->|"Manages Dragonfly CR"| DRAGONFLY
-
-    %% Monitoring
-    PROM -->|"Scrape /metrics"| GPU_API
-    PROM -->|"Scrape"| DCGM1
-    PROM -->|"Scrape"| DCGM2
-    PROM -->|"Scrape"| RAY_HEAD
-    PROM -->|"Scrape"| KSM
-    PROM -->|"Scrape"| NODE_EXP
-    PROM -->|"Scrape"| NODE_EXP1
-    PROM -->|"Scrape"| NODE_EXP2
-    GRAFANA -->|"Query"| PROM
-    GRAFANA -->|"Infinity plugin<br/>query GPU API"| GPU_API
-
-    %% GitOps
-    ARGOCD -->|"Auto-sync from Git"| GPU_WL
-    ARGOCD -->|"Auto-sync from Git"| Monitoring_NS
-    ARGOCD -->|"Auto-sync from Git"| KubeSys
-
-    %% NFD chain
-    NFD -->|"Adds label<br/>nvidia.com/gpu.present"| RunPod1
-    NFD -->|"Adds label<br/>nvidia.com/gpu.present"| RunPod2
+    UTIL <-->|"Netbird VPN (wt0)<br/>Encrypted WireGuard tunnel<br/>K3s flannel + control plane"| GPU1
+    UTIL <-->|"Netbird VPN (wt0)"| GPU2
+    GPU1 <-.->|"Pod-to-pod via flannel<br/>over VPN overlay"| GPU2
 
     style Hetzner fill:#1a1a2e,color:#fff
-    style RunPod1 fill:#0f3460,color:#fff
-    style RunPod2 fill:#0f3460,color:#fff
-    style Netbird fill:#533483,color:#fff
-    style GPU_API fill:#e94560,color:#fff
-    style RAY_HEAD fill:#16213e,color:#fff
-    style DRAGONFLY fill:#0f3460,color:#fff
+    style RunPod fill:#0f3460,color:#fff
 ```
 
-### Request Flow (Current)
+### Application Architecture — Request Flow
+
+How a batch inference job moves through the system.
 
 ```mermaid
-sequenceDiagram
-    participant U as User
-    participant API as GPU API<br/>(Go, :8000)
-    participant Q as Priority Queue<br/>(in-process heap)
-    participant DF as Dragonfly<br/>(Redis DB 1)
-    participant HEAD as Ray Head<br/>(Serve proxy :8000)
-    participant VLLM as vLLM Replica<br/>(GPU worker)
+graph TD
+    USER["User"] -->|"curl POST /v1/batches<br/>-H X-API-Key: ***<br/>-d {model, input[], max_tokens}"| GPU_API
 
-    U->>API: POST /v1/batches<br/>X-API-Key + JSON body
-    API->>API: Validate auth + input
-    API->>Q: Enqueue(prompts, priority, model)
-    Q->>DF: Persist job (QUEUED)
-    API-->>U: 202 {job_id, status: QUEUED}
+    subgraph gpu_workloads["Namespace: gpu-workloads"]
+        GPU_API["GPU API (Go)<br/>NodePort 30800<br/>ghcr.io/munhq/gpu-api"]
 
-    loop Dispatcher (goroutine)
-        Q->>Q: Pop highest priority job<br/>(if activeSlots < 120)
-        Q->>DF: Persist job (RUNNING)
-        Q->>HEAD: POST /v1/completions<br/>{model, prompt[], max_tokens}
-        HEAD->>VLLM: Route to available replica
-        VLLM->>VLLM: Continuous batching<br/>(single GPU forward pass)
-        VLLM-->>HEAD: {choices[], usage{}}
-        HEAD-->>Q: Response
-        Q->>Q: Map choices[i] to prompts[i]
-        Q->>DF: Persist job (SUCCEEDED) + results
-        Q->>Q: Remove from memory, free slot
+        subgraph queue_box["In-Process Priority Queue"]
+            QUEUE["Min-heap dispatcher<br/>high=1000 / medium=500 / low=100<br/>FIFO within same priority<br/>Max 120 concurrent slots"]
+        end
+
+        DRAGONFLY["Dragonfly v1.35.0<br/>Redis-compatible in-memory store<br/>1Gi max memory, 5Gi PVC<br/>RDB snapshots every minute"]
+
+        subgraph ray_cluster["RayService: raycluster-batch-inference"]
+            RAY_HEAD["Ray Head Pod<br/>ray-llm:2.53.0-py311-cu128<br/>Serve HTTP proxy :8000<br/>Dashboard :8265<br/>No GPU — scheduling only"]
+
+            subgraph worker1["gpu-node-01"]
+                VLLM_W1["Ray Worker Pod<br/>2x vLLM replicas<br/>2x RTX 5060 Ti<br/>Qwen2.5-0.5B-Instruct"]
+            end
+
+            subgraph worker2["gpu-node-02"]
+                VLLM_W2["Ray Worker Pod<br/>2x vLLM replicas<br/>2x RTX 5060 Ti<br/>Qwen2.5-0.5B-Instruct"]
+            end
+        end
     end
 
-    U->>API: GET /v1/batches/{job_id}
-    API->>Q: GetJob(id)
-    alt In memory (active/queued)
-        Q-->>API: Job from memory
-    else Completed
-        Q->>DF: Load from Redis
-        DF-->>Q: Job record
-        Q-->>API: Job from Redis
+    GPU_API -->|"1. Enqueue job"| QUEUE
+    QUEUE -->|"2. Persist state<br/>(QUEUED → RUNNING → SUCCEEDED)<br/>DB 1, TTL 7 days"| DRAGONFLY
+    QUEUE -->|"3. POST /v1/completions<br/>{model, prompt[], max_tokens}"| RAY_HEAD
+    RAY_HEAD -->|"4. Route to replica<br/>(continuous batching)"| VLLM_W1
+    RAY_HEAD -->|"4. Route to replica<br/>(continuous batching)"| VLLM_W2
+    RAY_HEAD -->|"GCS fault tolerance<br/>DB 0 (head HA)"| DRAGONFLY
+
+    USER -->|"curl GET /v1/batches/{id}"| GPU_API
+    GPU_API -->|"5. Check memory first<br/>then fallback to Redis"| DRAGONFLY
+
+    style GPU_API fill:#e94560,color:#fff
+    style DRAGONFLY fill:#533483,color:#fff
+    style RAY_HEAD fill:#16213e,color:#fff
+    style QUEUE fill:#0f3460,color:#fff
+```
+
+### Dragonfly — Dual Purpose Store
+
+Dragonfly serves two independent roles on separate Redis databases:
+
+```mermaid
+graph LR
+    subgraph Clients
+        GPU_API["GPU API (Go)"]
+        RAY_HEAD["Ray Head (GCS)"]
     end
-    API-->>U: 200 {status, results[{prompt, output}]}
+
+    subgraph Dragonfly["Dragonfly v1.35.0"]
+        DB0["DB 0<br/>Ray GCS State<br/>Actor/task metadata<br/>Head node HA"]
+        DB1["DB 1<br/>Job Persistence<br/>JSON job records<br/>TTL 7 days"]
+        DISK["PVC 5Gi<br/>RDB snapshots<br/>every minute"]
+    end
+
+    RAY_HEAD -->|"redis://dragonfly:6379<br/>GCS fault tolerance"| DB0
+    GPU_API -->|"dragonfly:6379<br/>Save/Load/ListRecent"| DB1
+    DB0 --> DISK
+    DB1 --> DISK
+
+    style Dragonfly fill:#533483,color:#fff
 ```
 
-### Infrastructure Layers
+### Operators & Platform Services
 
+What runs on utility-server to support the application layer.
+
+```mermaid
+graph TD
+    subgraph gitops["GitOps — ArgoCD (namespace: argocd)"]
+        ARGOCD["ArgoCD v2.13<br/>GitHub App auth to private repo"]
+        APPSETS["11 ApplicationSets<br/>App of Apps pattern"]
+        ARGOCD --> APPSETS
+    end
+
+    subgraph operators["Operators (namespace: gpu-workloads)"]
+        KUBERAY["KubeRay Operator v1.5.1<br/>Manages RayService CRD"]
+        DFOP["Dragonfly Operator v1.3.1<br/>Manages Dragonfly CR"]
+    end
+
+    subgraph gpu_stack["GPU Stack"]
+        NFD["Node Feature Discovery v0.18.3<br/>Detects NVIDIA GPUs (PCI vendor 10de)<br/>Labels: nvidia.com/gpu.present=true"]
+        NDP["NVIDIA Device Plugin v0.18.2<br/>Advertises nvidia.com/gpu resource<br/>Runs on labeled GPU nodes only"]
+        DCGM["DCGM Exporter v4.7.1<br/>GPU memory, utilization, temperature<br/>Per-GPU Prometheus metrics"]
+    end
+
+    subgraph storage["Storage"]
+        LPP["Local Path Provisioner v0.0.30<br/>Dynamic PVs at /opt/kube/data<br/>Used by: Prometheus, Grafana,<br/>AlertManager, Dragonfly"]
+    end
+
+    subgraph metrics["Metrics"]
+        MSRV["Metrics Server v3.13.0<br/>kubectl top, HPA support"]
+    end
+
+    APPSETS -->|"auto-sync"| operators
+    APPSETS -->|"auto-sync"| gpu_stack
+    APPSETS -->|"auto-sync"| storage
+    APPSETS -->|"auto-sync"| metrics
+    NFD -->|"labels nodes"| NDP
+
+    style gitops fill:#1a1a2e,color:#fff
+    style operators fill:#0f3460,color:#fff
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│ Layer 4: Applications (deployed by ArgoCD auto-sync)                │
-│                                                                     │
-│  GPU API → RayService (vLLM) → Dragonfly                           │
-│  4 vLLM replicas across 2 workers, 4 GPUs total                    │
-│  In-process priority queue (high=1000, medium=500, low=100)         │
-│  Max 120 concurrent requests to vLLM                                │
-├─────────────────────────────────────────────────────────────────────┤
-│ Layer 3: Operators & Platform Services                              │
-│                                                                     │
-│  KubeRay Operator    → manages RayService CRD                       │
-│  Dragonfly Operator  → manages Dragonfly CR                         │
-│  NVIDIA Device Plugin → advertises nvidia.com/gpu resources          │
-│  Node Feature Discovery → detects GPUs, labels nodes                │
-│  Local Path Provisioner → dynamic PVs at /opt/kube/data             │
-├─────────────────────────────────────────────────────────────────────┤
-│ Layer 2: Monitoring & Observability                                 │
-│                                                                     │
-│  Prometheus (30d, 50Gi) ← GPU API metrics, DCGM, node-exporter,    │
-│                           kube-state-metrics, Ray head/workers      │
-│  Grafana ← Infinity plugin for GPU API, Custom + Ray dashboards     │
-│  AlertManager                                                       │
-├─────────────────────────────────────────────────────────────────────┤
-│ Layer 1: GitOps (ArgoCD)                                            │
-│                                                                     │
-│  App of Apps: bootstrap ApplicationSet → 11 ApplicationSets         │
-│  GitHub App auth to private repo                                    │
-│  Auto-sync + auto-prune                                             │
-├─────────────────────────────────────────────────────────────────────┤
-│ Layer 0: Infrastructure (Ansible)                                   │
-│                                                                     │
-│  K3s v1.35 (disabled: traefik, servicelb, local-storage)            │
-│  Netbird VPN overlay (wt0) — all K3s traffic over encrypted tunnel  │
-│  NVIDIA Container Toolkit + containerd runtime                      │
-│  1 server (Hetzner) + 2 GPU agents (RunPod, 2x RTX 5060 Ti each)   │
-└─────────────────────────────────────────────────────────────────────┘
+
+### Monitoring & Observability
+
+```mermaid
+graph TD
+    subgraph monitoring["Namespace: monitoring"]
+        PROM["Prometheus<br/>30d retention, 50Gi PVC<br/>Discovers all ServiceMonitors"]
+        GRAFANA["Grafana v12.3.1<br/>10Gi PVC, Infinity plugin<br/>Custom + Ray dashboard folders"]
+        ALERT["AlertManager<br/>10Gi PVC"]
+    end
+
+    subgraph scrape_targets["Scrape Targets"]
+        T1["GPU API :8000/metrics<br/>queue depth, latency, throughput,<br/>tokens, batch size, job status"]
+        T2["DCGM Exporter :9400<br/>GPU memory, utilization,<br/>temperature (per GPU)"]
+        T3["Ray Head :8080<br/>task count, object store,<br/>GCS stats"]
+        T4["node-exporter :9100<br/>CPU, memory, disk, network"]
+        T5["kube-state-metrics :8080<br/>pod/node/deployment states"]
+        T6["Dragonfly (PodMonitor)<br/>memory, connections, ops/sec"]
+    end
+
+    PROM -->|"ServiceMonitor 30s"| T1
+    PROM -->|"ServiceMonitor"| T2
+    PROM -->|"ServiceMonitor"| T3
+    PROM -->|"ServiceMonitor"| T4
+    PROM -->|"ServiceMonitor"| T5
+    PROM -->|"PodMonitor"| T6
+    GRAFANA -->|"PromQL queries"| PROM
+    GRAFANA -->|"Infinity plugin<br/>direct HTTP to GPU API"| T1
+    PROM --> ALERT
+
+    style monitoring fill:#1a1a2e,color:#fff
 ```
+
+### Infrastructure Provisioning (Ansible)
+
+Execution order matters. Each stage depends on the previous.
+
+```mermaid
+graph LR
+    subgraph infra["plays/infrastructure.yml"]
+        BASE["base role<br/>System hardening<br/>Kernel modules<br/>sysctl, ulimits<br/>NVIDIA persistence"]
+        NETBIRD["netbird role<br/>Install VPN client<br/>Connect + get VPN IP<br/>Store as Ansible fact"]
+        NVIDIA["nvidia_runtime role<br/>GPU nodes only<br/>NVIDIA drivers<br/>Container Toolkit<br/>containerd config"]
+    end
+
+    subgraph platform["plays/platform.yml"]
+        K3S_S["k3s_server role<br/>K3s v1.35 on utility-server<br/>node-ip: VPN_IP<br/>flannel-iface: wt0<br/>Disable: traefik, servicelb"]
+        K3S_A["k3s_agent role<br/>K3s agent on GPU nodes<br/>Retrieve token from server<br/>GPU taints + labels"]
+        ARGOCD_R["argocd role<br/>Install ArgoCD v2.13<br/>GitHub App secret<br/>Bootstrap ApplicationSets"]
+    end
+
+    BASE --> NETBIRD --> NVIDIA
+    NVIDIA --> K3S_S --> K3S_A --> ARGOCD_R
+
+    style infra fill:#0f3460,color:#fff
+    style platform fill:#1a1a2e,color:#fff
+```
+
+### Complete Component Inventory
+
+Every component deployed in the cluster:
+
+| Component | Namespace | Runs On | Purpose |
+|---|---|---|---|
+| **K3s server** | - | utility-server | Kubernetes control plane |
+| **K3s agent** | - | gpu-node-01, gpu-node-02 | Worker nodes with GPU taint |
+| **ArgoCD v2.13** | argocd | utility-server | GitOps, App of Apps, GitHub App auth |
+| **GPU API (Go)** | gpu-workloads | utility-server | REST API, priority queue, auth |
+| **Dragonfly v1.35** | gpu-workloads | utility-server | Job persistence (DB1) + Ray GCS (DB0) |
+| **Dragonfly Operator v1.3.1** | dragonfly-system | utility-server | Manages Dragonfly CR lifecycle |
+| **Ray Head** | gpu-workloads | gpu-node (tolerates taint) | Serve proxy, dashboard, GCS |
+| **Ray Worker x2** | gpu-workloads | gpu-node-01, gpu-node-02 | vLLM inference (2 GPU each) |
+| **KubeRay Operator v1.5.1** | gpu-workloads | utility-server | Manages RayService CRD |
+| **NVIDIA Device Plugin v0.18.2** | gpu-workloads | gpu-node-01, gpu-node-02 | Exposes nvidia.com/gpu resource |
+| **Node Feature Discovery v0.18.3** | kube-system | all nodes | Labels GPU nodes automatically |
+| **DCGM Exporter v4.7.1** | monitoring | gpu-node-01, gpu-node-02 | GPU metrics for Prometheus |
+| **Prometheus** | monitoring | utility-server | Metrics collection, 30d retention |
+| **Grafana v12.3.1** | monitoring | utility-server | Dashboards, Infinity plugin |
+| **AlertManager** | monitoring | utility-server | Alert routing |
+| **kube-state-metrics** | monitoring | utility-server | K8s object metrics |
+| **node-exporter** | monitoring | all nodes | Host-level metrics |
+| **Metrics Server v3.13.0** | monitoring | utility-server | Resource metrics API |
+| **Local Path Provisioner v0.0.30** | kube-system | utility-server | Dynamic PV provisioning |
 
 ---
 
 ## Future Architecture — Multi-Datacenter GPU Federation
 
-Where this could go: multiple clusters, multiple GPU types, multiple regions.
+Where this could scale: multiple clusters, heterogeneous GPUs, cost-aware routing.
 
 ```mermaid
 graph TB
-    subgraph Global["Global Control Plane"]
-        GATEWAY["API Gateway<br/>Rate limiting, auth, routing"]
-        NATS["NATS JetStream<br/>Cross-cluster job bus"]
-        GLOBAL_DB["PostgreSQL<br/>Audit trail, billing,<br/>long-term job history"]
-        SCHEDULER["Global Scheduler<br/>Cost-aware routing<br/>GPU type matching<br/>Locality preference"]
-        REGISTRY["Model Registry<br/>S3/MinIO<br/>Model versions, weights"]
-    end
-
-    subgraph Users["Clients"]
-        U1["Batch API Client"]
-        U2["Real-time API Client"]
+    subgraph clients["Clients"]
+        U1["Batch API"]
+        U2["Real-time API"]
         U3["Internal Services"]
     end
 
-    U1 -->|"POST /v1/batches"| GATEWAY
-    U2 -->|"POST /v1/completions"| GATEWAY
-    U3 -->|"gRPC"| GATEWAY
+    subgraph global["Global Control Plane"]
+        GATEWAY["API Gateway<br/>Multi-tenant auth<br/>Rate limiting<br/>Per-user quotas"]
+        SCHEDULER["Global Scheduler<br/>GPU type matching<br/>Cost-aware routing<br/>Locality preference"]
+        NATS["NATS JetStream<br/>Cross-cluster job bus<br/>Durable subscriptions"]
+        PG["PostgreSQL<br/>Audit trail, billing<br/>Long-term job history"]
+        S3["Model Registry (S3/MinIO)<br/>Model weights + versions"]
+    end
 
-    GATEWAY --> SCHEDULER
-    SCHEDULER -->|"Route by GPU type,<br/>cost, latency"| NATS
-    GATEWAY -->|"Job metadata"| GLOBAL_DB
-
-    subgraph EU_Cluster["EU Cluster — Hetzner (Frankfurt)"]
+    subgraph eu["EU Cluster — Hetzner (Frankfurt)"]
         EU_API["GPU API"]
-        EU_ARGOCD["ArgoCD"]
-        EU_DRAGONFLY["Dragonfly"]
-        EU_PROM["Prometheus + Grafana"]
+        EU_DF["Dragonfly"]
+        EU_MON["Prometheus + Grafana"]
 
-        subgraph EU_Ray["RayService — Qwen2.5-0.5B"]
-            EU_HEAD["Ray Head"]
-            EU_W1["Worker: 2x RTX 5060 Ti"]
-            EU_W2["Worker: 2x RTX 5060 Ti"]
-        end
-
-        subgraph EU_Ray2["RayService — Llama 3.1 70B"]
-            EU_HEAD2["Ray Head"]
-            EU_W3["Worker: 4x A100 80GB"]
-            EU_W4["Worker: 4x A100 80GB"]
-        end
+        EU_RAY1["RayService: Qwen2.5-0.5B<br/>4x RTX 5060 Ti"]
+        EU_RAY2["RayService: Llama 3.1 70B<br/>8x A100 80GB"]
     end
 
-    subgraph US_Cluster["US Cluster — Lambda Labs (Texas)"]
+    subgraph us["US Cluster — Lambda Labs (Texas)"]
         US_API["GPU API"]
-        US_ARGOCD["ArgoCD"]
-        US_DRAGONFLY["Dragonfly"]
-        US_PROM["Prometheus + Grafana"]
+        US_DF["Dragonfly"]
+        US_MON["Prometheus + Grafana"]
 
-        subgraph US_Ray["RayService — Qwen2.5-72B"]
-            US_HEAD["Ray Head"]
-            US_W1["Worker: 8x H100"]
-            US_W2["Worker: 8x H100"]
-        end
-
-        subgraph US_Ray2["RayService — Whisper Large v3"]
-            US_HEAD2["Ray Head"]
-            US_W3["Worker: 2x A10G"]
-        end
+        US_RAY1["RayService: Qwen2.5-72B<br/>16x H100"]
+        US_RAY2["RayService: Whisper Large v3<br/>2x A10G"]
     end
 
-    subgraph Spot_Cluster["Spot Cluster — RunPod (burst)"]
+    subgraph spot["Spot Burst Cluster — RunPod"]
         SPOT_API["GPU API"]
-        SPOT_ARGOCD["ArgoCD"]
-
-        subgraph Spot_Ray["RayService — Qwen2.5-0.5B (spot)"]
-            SPOT_HEAD["Ray Head"]
-            SPOT_W1["Spot Worker: 2x RTX 4090"]
-            SPOT_W2["Spot Worker: 2x RTX 4090"]
-            SPOT_W3["Spot Worker: 2x RTX 4090"]
-        end
+        SPOT_RAY["RayService: Qwen2.5-0.5B<br/>6x RTX 4090 (preemptible)"]
     end
 
-    %% NATS distributes jobs to clusters
-    NATS -->|"Small model jobs<br/>(low latency)"| EU_API
-    NATS -->|"Large model jobs<br/>(high VRAM)"| US_API
-    NATS -->|"Overflow / burst<br/>(preemptible)"| SPOT_API
+    U1 & U2 & U3 --> GATEWAY
+    GATEWAY --> SCHEDULER
+    SCHEDULER --> NATS
+    GATEWAY --> PG
 
-    %% Each cluster manages its own Ray
-    EU_API --> EU_HEAD
-    EU_API --> EU_HEAD2
-    EU_API --> EU_DRAGONFLY
-    US_API --> US_HEAD
-    US_API --> US_HEAD2
-    US_API --> US_DRAGONFLY
-    SPOT_API --> SPOT_HEAD
+    NATS -->|"Small model jobs"| EU_API
+    NATS -->|"Large model jobs"| US_API
+    NATS -->|"Overflow / burst"| SPOT_API
 
-    %% Results flow back
-    EU_API -->|"Results"| NATS
-    US_API -->|"Results"| NATS
-    SPOT_API -->|"Results"| NATS
+    EU_API --> EU_DF
+    EU_API --> EU_RAY1 & EU_RAY2
+    US_API --> US_DF
+    US_API --> US_RAY1 & US_RAY2
+    SPOT_API --> SPOT_RAY
+
+    EU_API & US_API & SPOT_API -->|"Results"| NATS
     NATS -->|"Results"| GATEWAY
 
-    %% Model distribution
-    REGISTRY -->|"Pull weights"| EU_Ray
-    REGISTRY -->|"Pull weights"| EU_Ray2
-    REGISTRY -->|"Pull weights"| US_Ray
-    REGISTRY -->|"Pull weights"| US_Ray2
-    REGISTRY -->|"Pull weights"| Spot_Ray
+    S3 -->|"Pull model weights"| EU_RAY1 & EU_RAY2 & US_RAY1 & US_RAY2 & SPOT_RAY
+    EU_MON & US_MON -->|"Remote write"| PG
 
-    %% Monitoring federation
-    EU_PROM -->|"Remote write"| GLOBAL_DB
-    US_PROM -->|"Remote write"| GLOBAL_DB
-
-    style Global fill:#1a1a2e,color:#fff
-    style EU_Cluster fill:#0f3460,color:#fff
-    style US_Cluster fill:#16213e,color:#fff
-    style Spot_Cluster fill:#533483,color:#fff
-    style GATEWAY fill:#e94560,color:#fff
-    style NATS fill:#e94560,color:#fff
-    style SCHEDULER fill:#e94560,color:#fff
+    style global fill:#1a1a2e,color:#fff
+    style eu fill:#0f3460,color:#fff
+    style us fill:#16213e,color:#fff
+    style spot fill:#533483,color:#fff
 ```
 
-### What Changes from Current to Future
-
-| Concern | Current | Future |
-|---|---|---|
-| **Job routing** | Single GPU API with in-process queue | Global scheduler routes by GPU type, cost, latency |
-| **Cross-cluster comms** | N/A (single cluster) | NATS JetStream as job bus between clusters |
-| **Storage** | Dragonfly (Redis) for job state + GCS | PostgreSQL for audit/billing + Dragonfly per cluster |
-| **Models** | Single model (Qwen2.5-0.5B), hostPath cache | Model registry (S3/MinIO), multiple models per cluster |
-| **GPU types** | Homogeneous (4x RTX 5060 Ti) | Heterogeneous (RTX, A100, H100, spot instances) |
-| **Scaling** | Fixed 2 workers, 4 replicas | Per-cluster autoscaling + spot burst cluster |
-| **Networking** | Netbird VPN between 3 nodes | WireGuard mesh or Tailscale between clusters, Netbird within |
-| **Monitoring** | Single Prometheus + Grafana | Federated Prometheus, global dashboards via remote write |
-| **Auth** | Single API key | Multi-tenant with per-user keys, rate limits, quotas |
-| **HA** | Head SPOF, single Dragonfly | Ray head HA via GCS FT, Dragonfly replication |
-| **Cost** | Fixed RunPod instances | Spot preemption handling, cost-per-token tracking |
-
-### Future: Job Routing Logic
+### Job Routing Logic
 
 ```mermaid
 flowchart TD
     REQ["Incoming Request"] --> PARSE["Parse model + priority"]
 
-    PARSE --> MATCH{"Model → GPU<br/>requirement?"}
+    PARSE --> MATCH{"Model size →<br/>GPU requirement?"}
 
-    MATCH -->|"Small (0.5B-7B)<br/>needs 1x 16GB"| SMALL["Candidate: EU, Spot"]
-    MATCH -->|"Medium (13B-70B)<br/>needs 4x 80GB"| MEDIUM["Candidate: EU (A100), US (H100)"]
-    MATCH -->|"Large (70B+)<br/>needs 8x H100"| LARGE["Candidate: US only"]
+    MATCH -->|"Small: 0.5B-7B<br/>needs 1x 16GB"| SMALL["Candidates: EU, Spot"]
+    MATCH -->|"Medium: 13B-70B<br/>needs 4-8x 80GB"| MEDIUM["Candidates: EU (A100), US (H100)"]
+    MATCH -->|"Large: 70B+<br/>needs 8x+ H100"| LARGE["Candidate: US only"]
 
-    SMALL --> COST{"Lowest cost<br/>with capacity?"}
-    MEDIUM --> COST
-    LARGE --> COST
+    SMALL & MEDIUM & LARGE --> COST{"Cheapest cluster<br/>with available slots?"}
 
     COST -->|"Spot available"| SPOT["Route to Spot Cluster<br/>(cheapest, preemptible)"]
-    COST -->|"On-demand"| ONDEMAND["Route to nearest cluster<br/>with available slots"]
-    COST -->|"All full"| QUEUE["Queue with backpressure<br/>NATS consumer group"]
+    COST -->|"On-demand available"| ONDEMAND["Route to nearest cluster"]
+    COST -->|"All full"| QUEUE["Queue in NATS<br/>with backpressure"]
 
-    SPOT --> EXEC["Execute inference"]
-    ONDEMAND --> EXEC
+    SPOT & ONDEMAND --> EXEC["Execute inference"]
     QUEUE -->|"Slot freed"| EXEC
-
-    EXEC --> RESULT["Return result via NATS"]
+    EXEC --> RESULT["Return via NATS → Gateway → Client"]
 ```
+
+### Current vs Future
+
+| Concern | Current | Future |
+|---|---|---|
+| **Job routing** | Single GPU API, in-process priority heap | Global scheduler, cost-aware, GPU-type matching |
+| **Cross-cluster** | N/A (single cluster) | NATS JetStream job bus |
+| **Storage** | Dragonfly for jobs + Ray GCS | PostgreSQL (audit/billing) + Dragonfly per cluster |
+| **Models** | Single model (Qwen2.5-0.5B), hostPath | Model registry (S3), multiple models per cluster |
+| **GPU types** | 4x RTX 5060 Ti (homogeneous) | RTX, A100, H100, spot (heterogeneous) |
+| **Scaling** | Fixed 2 workers, 4 replicas | Per-cluster autoscaling + spot burst |
+| **Networking** | Netbird VPN (3 nodes) | WireGuard mesh between clusters, Netbird within |
+| **Monitoring** | Single Prometheus + Grafana | Federated Prometheus via remote write |
+| **Auth** | Single API key | Multi-tenant, per-user keys, rate limits, quotas |
+| **HA** | Head is SPOF, single Dragonfly | Ray GCS FT, Dragonfly replication, multi-head |
+| **Cost tracking** | None | Cost-per-token, GPU-hours per job, billing |
