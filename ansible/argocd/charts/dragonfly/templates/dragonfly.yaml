@@ -31,11 +31,25 @@ spec:
     {{- end }}
   {{- end }}
 
-  {{- if .Values.storage }}
-  storage:
-    requests:
-      storage: {{ .Values.storage.size }}
-    {{- if .Values.storageClass }}
-    storageClassName: {{ .Values.storageClass }}
+  {{- if .Values.snapshot }}
+  snapshot:
+    {{- if .Values.snapshot.cron }}
+    cron: {{ .Values.snapshot.cron | quote }}
+    {{- end }}
+    {{- if .Values.snapshot.dir }}
+    dir: {{ .Values.snapshot.dir | quote }}
+    {{- end }}
+    {{- if .Values.snapshot.persistentVolumeClaimSpec }}
+    persistentVolumeClaimSpec:
+      accessModes:
+        {{- range .Values.snapshot.persistentVolumeClaimSpec.accessModes }}
+        - {{ . }}
+        {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.snapshot.persistentVolumeClaimSpec.resources.requests.storage }}
+      {{- if .Values.snapshot.persistentVolumeClaimSpec.storageClassName }}
+      storageClassName: {{ .Values.snapshot.persistentVolumeClaimSpec.storageClassName }}
+      {{- end }}
     {{- end }}
   {{- end }}
