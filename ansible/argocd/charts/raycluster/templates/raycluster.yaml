@@ -30,6 +30,10 @@ spec:
 
   rayClusterConfig:
     rayVersion: {{ .Values.rayVersion | quote }}
+    {{- if .Values.gcsFaultTolerance.enabled }}
+    gcsFaultToleranceOptions:
+      externalRedisUrl: {{ .Values.gcsFaultTolerance.redisUrl | quote }}
+    {{- end }}
 
     headGroupSpec:
       rayStartParams:

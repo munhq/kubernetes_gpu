@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: dragonfly
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          - env: gpu
+            namespace: gpu-workloads
+            project: gpu
+  template:
+    metadata:
+      name: 'dragonfly'
+      namespace: argocd
+      labels:
+        app: dragonfly
+        environment: '{{ .env }}'
+    spec:
+      project: '{{ .project }}'
+      source:
+        repoURL: https://github.com/munhq/kubernetes_gpu.git
+        targetRevision: main
+        path: ansible/argocd/charts/dragonfly
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .namespace }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

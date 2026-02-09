@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: dragonfly-operator
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          - env: gpu
+            namespace: dragonfly-system
+            project: gpu
+            helmRepo: ghcr.io
+            helmChart: dragonflydb/dragonfly-operator/helm/dragonfly-operator
+            helmVersion: v1.3.1
+  template:
+    metadata:
+      name: 'dragonfly-operator'
+      namespace: argocd
+      labels:
+        app: dragonfly-operator
+        environment: '{{ .env }}'
+    spec:
+      project: '{{ .project }}'
+      sources:
+        - repoURL: '{{ .helmRepo }}'
+          chart: '{{ .helmChart }}'
+          targetRevision: '{{ .helmVersion }}'
+          helm:
+            releaseName: dragonfly-operator
+            valueFiles:
+              - $values/ansible/argocd/config/dragonfly-operator/values.yaml
+        - repoURL: https://github.com/munhq/kubernetes_gpu.git
+          targetRevision: main
+          ref: values
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .namespace }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

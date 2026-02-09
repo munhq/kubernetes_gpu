@@ -1,0 +1,15 @@
+# Dragonfly Operator Helm values
+# Redis-compatible operator for Kubernetes
+
+# Use defaults - operator is lightweight
+# Watches all namespaces for Dragonfly resources
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi

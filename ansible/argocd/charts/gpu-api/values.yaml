@@ -50,3 +50,7 @@ env:
     value: "Qwen/Qwen2.5-0.5B-Instruct"
   - name: MAX_CONCURRENT
     value: "4"
+  - name: REDIS_URL
+    value: "dragonfly.gpu-workloads.svc.cluster.local:6379"
+  - name: JOB_TTL_SECONDS
+    value: "3600"

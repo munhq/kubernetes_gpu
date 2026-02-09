@@ -1,0 +1,41 @@
+# Dragonfly CR Template
+# Creates Dragonfly instance using operator
+
+apiVersion: dragonflydb.io/v1alpha1
+kind: Dragonfly
+metadata:
+  name: {{ .Values.name }}
+spec:
+  replicas: {{ .Values.replicas | default 1 }}
+
+  image: {{ .Values.image }}
+
+  {{- if .Values.args }}
+  args:
+    {{- range .Values.args }}
+    - {{ . }}
+    {{- end }}
+  {{- end }}
+
+  {{- if .Values.resources }}
+  resources:
+    {{- if .Values.resources.requests }}
+    requests:
+      cpu: {{ .Values.resources.requests.cpu | quote }}
+      memory: {{ .Values.resources.requests.memory | quote }}
+    {{- end }}
+    {{- if .Values.resources.limits }}
+    limits:
+      cpu: {{ .Values.resources.limits.cpu | quote }}
+      memory: {{ .Values.resources.limits.memory | quote }}
+    {{- end }}
+  {{- end }}
+
+  {{- if .Values.storage }}
+  storage:
+    requests:
+      storage: {{ .Values.storage.size }}
+    {{- if .Values.storageClass }}
+    storageClassName: {{ .Values.storageClass }}
+    {{- end }}
+  {{- end }}
