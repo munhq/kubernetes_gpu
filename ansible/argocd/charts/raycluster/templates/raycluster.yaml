@@ -31,7 +31,7 @@ spec:
     rayVersion: {{ .Values.rayVersion | quote }}
     {{- if .Values.gcsFaultTolerance.enabled }}
     gcsFaultToleranceOptions:
-      externalRedisUrl: {{ .Values.gcsFaultTolerance.redisUrl | quote }}
+      redisAddress: {{ .Values.gcsFaultTolerance.redisUrl | quote }}
     {{- end }}
 
     headGroupSpec:
