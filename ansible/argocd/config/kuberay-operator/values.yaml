@@ -11,3 +11,7 @@ metrics:
   serviceMonitor:
     enabled: true
     interval: 30s
+    # Add labels for better organization (even though Prometheus discovers all ServiceMonitors)
+    selector:
+      app.kubernetes.io/component: kuberay-operator
+      prometheus: kube-prometheus
