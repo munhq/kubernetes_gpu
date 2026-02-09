@@ -13,12 +13,12 @@ args:
   # Note: cache_mode removed - Ray GCS needs persistence, not eviction
   - --nodf_snapshot_format  # Use Redis-compatible RDB format for Ray GCS
   - --dbfilename=dump.rdb
-  - --save_schedule=*:*  # Snapshot every minute for Ray GCS fault tolerance
+  # Note: snapshot_cron is configured via CRD snapshot.cron below
 
 # Snapshot configuration with persistent storage
 # Ray GCS fault tolerance requires RDB-style snapshots to PVC
 snapshot:
-  # cron is optional when using --save_schedule
+  cron: "* * * * *"  # Snapshot every minute (replaces deprecated --save_schedule)
   dir: /data
   persistentVolumeClaimSpec:
     accessModes:
