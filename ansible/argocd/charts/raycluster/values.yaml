@@ -13,7 +13,7 @@ serve:
   dtype: auto
   maxModelLen: 1024
   gpuMemoryUtilization: 0.75
-  minReplicas: 2
+  minReplicas: 4
   maxReplicas: 4
   targetOngoingRequests: 8
   maxOngoingRequests: 64
