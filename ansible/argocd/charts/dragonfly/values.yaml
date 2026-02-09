@@ -9,14 +9,23 @@ image: "docker.dragonflydb.io/dragonflydb/dragonfly:v1.35.0"
 replicas: 1
 
 args:
-  - --maxmemory=512mb
-  - --cache_mode=true
+  - --maxmemory=1024mb
+  # Note: cache_mode removed - Ray GCS needs persistence, not eviction
+  - --dbfilename=dump.rdb
+  - --save_schedule=*:*  # Snapshot every minute (Dragonfly's RDB equivalent)
 
-# Persistent storage for snapshot durability across restarts
-storage:
-  size: 5Gi
-
-storageClass: local-path
+# Snapshot configuration with persistent storage
+# Ray GCS fault tolerance requires RDB-style snapshots to PVC
+snapshot:
+  # cron is optional when using --save_schedule
+  dir: /data
+  persistentVolumeClaimSpec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 5Gi
+    storageClassName: local-path
 
 resources:
   requests:
