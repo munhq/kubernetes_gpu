@@ -18,7 +18,6 @@ spec:
           engine_kwargs:
             dtype: {{ .Values.serve.dtype | default "auto" }}
             max_model_len: {{ .Values.serve.maxModelLen | default 1024 }}
-            device: auto
             gpu_memory_utilization: {{ .Values.serve.gpuMemoryUtilization | default 0.75 }}
             trust_remote_code: true
           deployment_config:
