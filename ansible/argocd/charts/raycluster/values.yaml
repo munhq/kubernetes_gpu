@@ -1,6 +1,11 @@
 clusterName: raycluster-batch-inference
 rayVersion: "2.53.0"
 
+# GCS fault tolerance — head node HA via Dragonfly (Redis-compatible)
+gcsFaultTolerance:
+  enabled: true
+  redisUrl: "redis://dragonfly.gpu-workloads.svc.cluster.local:6379"
+
 # vLLM serve configuration (managed by KubeRay operator via RayService CRD)
 serve:
   modelId: qwen2.5-0.5b-instruct

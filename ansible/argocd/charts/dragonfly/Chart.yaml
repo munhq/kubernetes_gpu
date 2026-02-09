@@ -1,0 +1,5 @@
+apiVersion: v2
+name: dragonfly
+description: Dragonfly cache using Dragonfly Operator
+version: 1.0.0
+appVersion: "v1.13.0"

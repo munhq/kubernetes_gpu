@@ -1,0 +1,27 @@
+# Dragonfly instance configuration
+# Redis-compatible in-memory datastore
+# Serves dual purpose: Ray GCS fault tolerance + GPU API job persistence
+
+name: dragonfly
+
+image: "docker.dragonflydb.io/dragonflydb/dragonfly:v1.35.0"
+
+replicas: 1
+
+args:
+  - --maxmemory=512mb
+  - --cache_mode=true
+
+# Persistent storage for snapshot durability across restarts
+storage:
+  size: 5Gi
+
+storageClass: local-path
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: "512Mi"
+  limits:
+    cpu: "1000m"
+    memory: "1Gi"
