@@ -1,153 +1,69 @@
-# Deployment Guide - KubeRay Batch Inference
+# Deployment Guide
+
+How to deploy and verify the KubeRay batch inference stack.
 
 ## Architecture
 
 ```
-┌─────────────┐
-│   User      │
-└──────┬──────┘
-       │ HTTP POST /v1/batches
-       │ X-API-Key: sk-demo-key-12345
-       ▼
-┌──────────────────────────────┐
-│  Batch Inference API (Go)    │
-│  - API Key Auth              │
-│  - Job submission            │
-│  - Status/Results retrieval  │
-└──────────┬───────────────────┘
-           │ Ray Jobs API
-           ▼
-┌──────────────────────────────┐
-│   Ray Cluster (KubeRay)      │
-│                              │
-│  ┌────────────────┐          │
-│  │  Ray Head Node │          │
-│  │  - Scheduling  │          │
-│  │  - Dashboard   │          │
-│  └────────┬───────┘          │
-│           │                  │
-│  ┌────────▼───────┐          │
-│  │  GPU Worker 1  │          │
-│  │  - 1x GPU      │          │
-│  │  - vLLM        │          │
-│  └────────────────┘          │
-│  ┌────────────────┐          │
-│  │  GPU Worker 2  │          │
-│  │  - 1x GPU      │          │
-│  │  - vLLM        │          │
-│  └────────────────┘          │
-└──────────────────────────────┘
+User → GPU API (Go, port 8000)
+         │
+         ├── POST /v1/batches → fire goroutine → HTTP to Ray Serve → vLLM → results
+         ├── GET /v1/batches/{id} → read from memory (in-flight) or Dragonfly (completed)
+         ├── GET / → embedded web dashboard
+         └── GET /metrics → Prometheus metrics
+         │
+         ▼
+   RayService (persistent, warm)
+   Head: serve HTTP proxy :8000, dashboard :8265
+   Workers: 2 GPU nodes × 2 GPUs each, vLLM continuous batching
+   Model: Qwen/Qwen2.5-0.5B-Instruct (always loaded in GPU memory)
 ```
 
 ## Prerequisites
 
-- ✅ K3s cluster with 2 GPU nodes
-- ✅ KubeRay operator installed
-- ✅ ArgoCD installed
-- ✅ GitHub Container Registry access
+- K3s cluster with GPU nodes (deployed via `ansible-playbook plays/platform.yml`)
+- ArgoCD installed and syncing (deployed via `ansible-playbook plays/argocd.yml`)
+- All ApplicationSets healthy: `kubectl get applications -n argocd`
 
----
+## Deploy
 
-## Step 1: Build and Push Docker Image
-
-### Option A: GitHub Actions (Automated)
-
-Commit and push to GitHub - the workflow will automatically build and push:
-
-```bash
-git add -A
-git commit -m "Add batch inference API"
-git push
-```
-
-The image will be available at: `ghcr.io/munhq/batch-inference-api:latest`
-
-### Option B: Manual Build and Push
-
-```bash
-cd batch-inference-api
-
-# Build
-docker build -t ghcr.io/munhq/batch-inference-api:latest .
-
-# Login to GitHub Container Registry
-echo $GITHUB_TOKEN | docker login ghcr.io -u munhq --password-stdin
-
-# Push
-docker push ghcr.io/munhq/batch-inference-api:latest
-```
-
----
-
-## Step 2: Deploy Infrastructure via ArgoCD
+Everything deploys via ArgoCD from a single command:
 
 ```bash
 cd ansible
-
-# Deploy all ApplicationSets (Prometheus, metrics-server, dcgm-exporter, kuberay-operator, batch-inference)
-ansible-playbook plays/argocd.yml
+ansible-playbook plays/all.yml --vault-password-file .vault_pass
 ```
 
-This will deploy:
-- ✅ KubeRay operator
-- ✅ Prometheus + Grafana
-- ✅ DCGM Exporter (GPU metrics)
-- ✅ metrics-server
-- ✅ RayCluster (1 head + 2 GPU workers)
-- ✅ Batch Inference API
+This runs infrastructure → platform → argocd in order (~30 minutes total). ArgoCD then auto-syncs all applications.
 
----
+## Verify
 
-## Step 3: Verify Deployment
+### Cluster
 
 ```bash
-# Check RayCluster
-kubectl get raycluster
-kubectl get pods -l ray.io/cluster=raycluster-batch-inference
-
-# Check Batch API
-kubectl get pods -l app=batch-inference-api
-kubectl get svc batch-inference-api
-
-# Get NodePort
-kubectl get svc batch-inference-api -o jsonpath='{.spec.ports[0].nodePort}'
+kubectl get nodes                     # 3 nodes Ready
+kubectl get pods -n gpu-workloads     # Ray head, 2 workers, GPU API, Dragonfly
+kubectl get rayservice -n gpu-workloads  # raycluster-batch-inference RUNNING
 ```
 
-Expected output:
-```
-NAME                           READY   STATUS    RESTARTS   AGE
-raycluster-batch-inference-head-xxxxx   1/1     Running   0          2m
-raycluster-batch-inference-worker-0     1/1     Running   0          2m
-raycluster-batch-inference-worker-1     1/1     Running   0          2m
-batch-inference-api-xxxxx               1/1     Running   0          2m
-
-NAME                      TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
-batch-inference-api       NodePort   10.43.x.x       <none>        8000:30800/TCP   2m
-```
-
----
-
-## Step 4: Test the API
-
-### Get the API endpoint
+### GPU API
 
 ```bash
-# Get node IP
-NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="ExternalIP")].address}')
+kubectl port-forward svc/gpu-api -n gpu-workloads 8000:8000
 
-# Or use specific node
-NODE_IP=203.0.113.10  # Your utility server IP
+# Health check
+curl http://localhost:8000/health/deep
 
-# NodePort is 30800 (defined in manifest)
-API_URL="http://${NODE_IP}:30800"
+# Dashboard
+open http://localhost:8000/
 ```
 
-### Submit a batch job
+### Submit a test job
 
 ```bash
-curl -X POST ${API_URL}/v1/batches \
+curl -X POST http://localhost:8000/v1/batches \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: sk-demo-key-12345" \
+  -H "X-API-Key: your-api-key" \
   -d '{
     "model": "Qwen/Qwen2.5-0.5B-Instruct",
     "input": [
@@ -158,204 +74,72 @@ curl -X POST ${API_URL}/v1/batches \
   }'
 ```
 
-Response:
-```json
-{
-  "job_id": "550e8400-e29b-41d4-a716-446655440000",
-  "status": "submitted"
-}
-```
+Returns: `{"job_id": "...", "status": "RUNNING", "priority": "medium"}`
 
-### Check job status
+Poll for results:
 
 ```bash
-JOB_ID="550e8400-e29b-41d4-a716-446655440000"
-
-curl -X GET ${API_URL}/v1/batches/${JOB_ID} \
-  -H "X-API-Key: sk-demo-key-12345"
+curl http://localhost:8000/v1/batches/{job_id} -H "X-API-Key: your-api-key"
 ```
 
-Response (running):
-```json
-{
-  "job_id": "550e8400-e29b-41d4-a716-446655440000",
-  "status": "running"
-}
-```
-
-Response (completed):
-```json
-{
-  "job_id": "550e8400-e29b-41d4-a716-446655440000",
-  "status": "completed",
-  "results": [
-    {
-      "prompt": "What is 2+2?",
-      "output": "2+2 equals 4."
-    },
-    {
-      "prompt": "Explain quantum computing in one sentence",
-      "output": "Quantum computing leverages quantum mechanical phenomena..."
-    }
-  ]
-}
-```
-
-### Test authentication
+### Auth test
 
 ```bash
-# Missing API key (should return 401)
-curl -X POST ${API_URL}/v1/batches \
+# No key — 401
+curl -s -X POST http://localhost:8000/v1/batches \
   -H "Content-Type: application/json" \
-  -d '{"model": "test", "input": [], "max_tokens": 10}'
+  -d '{"input":[{"prompt":"test"}]}'
 
-# Invalid API key (should return 401)
-curl -X POST ${API_URL}/v1/batches \
+# Wrong key — 401
+curl -s -X POST http://localhost:8000/v1/batches \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: wrong-key" \
-  -d '{"model": "test", "input": [], "max_tokens": 10}'
+  -H "X-API-Key: wrong" \
+  -d '{"input":[{"prompt":"test"}]}'
 ```
 
----
-
-## Step 5: Monitor with Grafana
+### Load test
 
 ```bash
-# Get Grafana NodePort
-kubectl get svc -n monitoring prometheus-grafana -o jsonpath='{.spec.ports[0].nodePort}'
-
-# Access Grafana
-# URL: http://203.0.113.10:<nodeport>
-# Default credentials: admin/admin (from monitoring ApplicationSet)
+GPU_API_KEY=your-key python3 scripts/test_gpu_api_load.py
 ```
 
-**Key Metrics to Monitor:**
-- GPU utilization (DCGM Exporter)
-- Ray worker CPU/memory
-- API response times
-- Job completion rates
-- Failed job count
+99 concurrent jobs, expects all to succeed.
 
----
+## Dashboards
+
+### GPU API Dashboard
+```bash
+kubectl port-forward svc/gpu-api -n gpu-workloads 8000:8000
+# http://localhost:8000/
+```
+
+### Grafana
+```bash
+kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
+# http://localhost:3000 — admin / admin
+```
+
+### Ray Dashboard
+```bash
+kubectl port-forward -n gpu-workloads svc/raycluster-batch-inference-head-svc 8265:8265
+# http://localhost:8265
+```
+
+### ArgoCD
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+kubectl port-forward -n argocd svc/argocd-server 8080:443
+# https://localhost:8080 — admin / (password from above)
+```
 
 ## Troubleshooting
 
-### API not responding
+**API not responding**: Check `kubectl logs -n gpu-workloads -l app=gpu-api --tail=100`. Usually means Ray Serve isn't ready yet — vLLM takes a minute to load the model.
 
-```bash
-# Check API logs
-kubectl logs -l app=batch-inference-api --tail=50
+**Ray Serve not starting**: Check head pod logs. Usually a GPU scheduling issue — verify `kubectl describe nodes | grep -A5 nvidia.com/gpu` shows available GPUs.
 
-# Check if Ray head is accessible
-kubectl exec -it deployment/batch-inference-api -- curl http://raycluster-batch-inference-head-svc:8265/api/health
-```
+**VPN issues**: `ansible all -i inventory/main/hosts -m shell -a "netbird status"`. If a node dropped off the VPN, the K3s agent loses contact with the server.
 
-### Ray workers not starting
+**ArgoCD not syncing**: Check `kubectl logs -n argocd -l app.kubernetes.io/name=argocd-application-controller`. Usually a GitHub App auth issue.
 
-```bash
-# Check worker logs
-kubectl logs -l ray.io/node-type=worker --tail=50
-
-# Check GPU availability
-kubectl describe nodes | grep -A 10 "nvidia.com/gpu"
-```
-
-### Jobs stuck in "running"
-
-```bash
-# Check Ray dashboard
-kubectl port-forward svc/raycluster-batch-inference-head-svc 8265:8265
-
-# Open browser: http://localhost:8265
-```
-
----
-
-## Production Considerations
-
-### 1. **Output Storage**
-Current: `/tmp/batch-results` (ephemeral)
-
-**Production options:**
-- PersistentVolume (NFS/Ceph)
-- S3-compatible storage (MinIO/AWS S3)
-- PostgreSQL (for small results + metadata)
-
-### 2. **Load Balancing**
-Current: 2 GPU workers
-
-**Ray's distribution:**
-- Automatic work distribution across workers
-- Gang scheduling for multi-GPU jobs
-- Dynamic resource allocation
-
-**Bottlenecks:**
-- Model loading time (each worker loads model separately)
-- Network bandwidth for large results
-- Shared storage I/O
-
-**Solutions:**
-- Model caching in shared volume
-- Result streaming instead of batch return
-- Increase worker replicas
-
-### 3. **KPIs for Production**
-
-| Metric | Target | Source |
-|--------|--------|--------|
-| API latency (p95) | < 100ms | Prometheus (API metrics) |
-| Job completion time | < 5 min | Ray Dashboard |
-| GPU utilization | > 80% | DCGM Exporter |
-| Failed job rate | < 1% | Application logs |
-| Queue depth | < 10 | Ray Dashboard |
-
-### 4. **KubeRay Integration**
-
-**Strengths:**
-- ✅ Native K8s CRDs (RayCluster, RayJob)
-- ✅ Auto-scaling workers based on load
-- ✅ Resource isolation (GPU, CPU, memory)
-- ✅ Namespace-based multi-tenancy
-- ✅ Prometheus metrics out-of-the-box
-
-**Limitations:**
-- ❌ No built-in API gateway (had to build custom)
-- ❌ Results storage not included (ephemeral by default)
-- ❌ No built-in authentication
-- ❌ Limited multi-cluster support (need MultiKueue)
-
-### 5. **Scaling Strategy**
-
-**Horizontal scaling:**
-```yaml
-workerGroupSpecs:
-- replicas: 5  # Scale to 5 GPU workers
-  maxReplicas: 10  # Auto-scale up to 10
-```
-
-**Vertical scaling:**
-```yaml
-resources:
-  limits:
-    nvidia.com/gpu: 2  # Use 2 GPUs per worker
-```
-
----
-
-## Next Steps
-
-1. ✅ Deploy base infrastructure
-2. ✅ Build and push Docker image
-3. ✅ Test API end-to-end
-4. 📊 Set up Grafana dashboards
-5. 📝 Prepare technical report
-6. 🎤 Practice demo presentation
-
-**Estimated timeline:**
-- Infrastructure deployment: 30 min
-- API testing: 1 hour
-- Monitoring setup: 1 hour
-- Documentation: 2 hours
-- Presentation prep: 2 hours
-
-**Total: ~7 hours of focused work**
+**Nuclear option**: `ansible-playbook plays/all.yml --vault-password-file .vault_pass`

@@ -59,7 +59,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams.
 
 ```
 gpu-api/                  # Go REST API
-  main.go, handlers.go, queue.go, store.go, metrics.go, ray.go, Dockerfile
+  main.go, handlers.go, queue.go, store.go, metrics.go, rayclient.go, dashboard.html, Dockerfile
 
 ansible/
   plays/                  # infrastructure.yml → platform.yml → argocd.yml
