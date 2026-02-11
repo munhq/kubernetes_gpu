@@ -1,4 +1,4 @@
-clusterName: raycluster-batch-inference
+clusterName: rayservice
 rayVersion: "2.53.0"
 
 # GCS fault tolerance — head node HA via Dragonfly (Redis-compatible)
@@ -6,20 +6,39 @@ gcsFaultTolerance:
   enabled: true
   redisUrl: "redis://dragonfly.gpu-workloads.svc.cluster.local:6379"
 
-# vLLM serve configuration (managed by KubeRay operator via RayService CRD)
-serve:
-  modelId: qwen2.5-0.5b-instruct
-  modelSource: Qwen/Qwen2.5-0.5B-Instruct
-  dtype: auto
-  maxModelLen: 1024
-  gpuMemoryUtilization: 0.75
-  minReplicas: 4
-  maxReplicas: 4
-  targetOngoingRequests: 8
-  maxOngoingRequests: 64
+# Multi-model configuration. Each model becomes a separate vLLM deployment
+# within a single RayService. Ray Serve routes requests by model name.
+# min_replicas: 0 means the model is cold (scale-to-zero, loads on demand).
+models:
+  - id: glm-4-7
+    source: "hf:zai-org/GLM-4.7"
+    minReplicas: 0
+    maxReplicas: 4
+    numGpus: 1
+    minVRAM: 24
+    maxModelLen: 8192
+    gpuUtilization: 0.90
+    targetOngoingRequests: 8
+  - id: minimax-m2-1
+    source: "hf:MiniMaxAI/MiniMax-M2.1"
+    minReplicas: 0
+    maxReplicas: 4
+    numGpus: 1
+    minVRAM: 48
+    maxModelLen: 4096
+    gpuUtilization: 0.90
+    targetOngoingRequests: 4
+  - id: kimi-k2-5
+    source: "hf:moonshotai/Kimi-K2.5"
+    minReplicas: 0
+    maxReplicas: 2
+    numGpus: 2
+    minVRAM: 80
+    maxModelLen: 8192
+    gpuUtilization: 0.90
+    targetOngoingRequests: 2
 
 head:
-  # ray-llm image includes ray.serve.llm module required by serveConfigV2
   image: rayproject/ray-llm:2.53.0-py311-cu128
   resources:
     limits:
@@ -30,20 +49,32 @@ head:
       memory: "4Gi"
 
 workers:
-  replicas: 2
-  minReplicas: 1
-  maxReplicas: 2
-  gpusPerWorker: 2
-  # ray-llm image includes vLLM and ray.serve.llm dependencies
+  replicas: 0
+  minReplicas: 0
+  maxReplicas: 8
+  gpusPerWorker: 1
   image: rayproject/ray-llm:2.53.0-py311-cu128
-  # Host path on RunPod nodes where HuggingFace models are cached
   modelsHostPath: /opt/gpu
   resources:
     limits:
-      nvidia.com/gpu: 2
+      nvidia.com/gpu: 1
       cpu: "4"
       memory: "16Gi"
     requests:
-      nvidia.com/gpu: 2
+      nvidia.com/gpu: 1
       cpu: "2"
       memory: "8Gi"
+
+# Expose Ray head GCS port for external ray-workers to join the cluster.
+# ray-worker cloud instances connect via: ray start --address=<nodeIP>:<gcsNodePort>
+gcsNodePort:
+  enabled: true
+  port: 31637
+
+# KEDA demand-driven scaling (requires KEDA operator installed)
+keda:
+  enabled: true
+  prometheusAddress: "http://prometheus-operated.monitoring.svc.cluster.local:9090"
+  maxReplicaCount: 6
+  cooldownPeriod: 300
+  pollingInterval: 30
