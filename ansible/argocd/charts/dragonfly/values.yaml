@@ -9,7 +9,7 @@ image: "docker.dragonflydb.io/dragonflydb/dragonfly:v1.35.0"
 replicas: 1
 
 args:
-  - --maxmemory=1024mb
+  - --maxmemory=2048mb
   # Note: cache_mode removed - Ray GCS needs persistence, not eviction
   - --nodf_snapshot_format  # Use Redis-compatible RDB format for Ray GCS
   - --dbfilename=dump.rdb
@@ -34,4 +34,4 @@ resources:
     memory: "512Mi"
   limits:
     cpu: "1000m"
-    memory: "1Gi"
+    memory: "2560Mi"

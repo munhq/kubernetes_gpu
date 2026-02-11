@@ -13,7 +13,7 @@ spec:
             project: gpu
   template:
     metadata:
-      name: 'raycluster'
+      name: 'rayservice'
       namespace: argocd
       labels:
         app: raycluster
