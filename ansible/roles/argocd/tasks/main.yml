@@ -132,16 +132,7 @@
       data:
         api-key: "{{ gpu_api_secret | b64encode }}"
 
-- name: Create gpuscale-system namespace
-  kubernetes.core.k8s:
-    state: present
-    definition:
-      apiVersion: v1
-      kind: Namespace
-      metadata:
-        name: gpuscale-system
-
-- name: Create GHCR pull secret for gpuscale-system
+- name: Create GHCR pull secret for gpu-workloads (GPUScale)
   kubernetes.core.k8s:
     state: present
     definition:
@@ -149,7 +140,7 @@
       kind: Secret
       metadata:
         name: ghcr-secret
-        namespace: gpuscale-system
+        namespace: gpu-workloads
       type: kubernetes.io/dockerconfigjson
       data:
         .dockerconfigjson: "{{ dockerconfig | to_json | b64encode }}"
@@ -169,7 +160,7 @@
       kind: ConfigMap
       metadata:
         name: gpuscale-ray-config
-        namespace: gpuscale-system
+        namespace: gpu-workloads
       data:
         ray-head-address: "{{ hostvars['utility-server']['ansible_host'] }}:31637"
         redis-url: "dragonfly.gpu-workloads.svc.cluster.local:6379"
@@ -182,7 +173,7 @@
       kind: Secret
       metadata:
         name: gpuscale-provider-credentials
-        namespace: gpuscale-system
+        namespace: gpu-workloads
       type: Opaque
       data:
         vastai-api-key: "{{ vault_vastai_api_key | b64encode }}"

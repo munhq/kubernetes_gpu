@@ -9,7 +9,7 @@ spec:
     - list:
         elements:
           - env: gpu
-            namespace: gpuscale-system
+            namespace: gpu-workloads
             project: gpu
   template:
     metadata:

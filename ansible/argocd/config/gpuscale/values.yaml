@@ -26,14 +26,14 @@ defaultPool:
     - name: vast.ai
       apiKeySecret:
         name: gpuscale-provider-credentials
-        namespace: gpuscale-system
+        namespace: gpu-workloads
       capacityType: spot
       maxPrice: 0.50
       nodeType: ray-worker
     - name: verda
       apiKeySecret:
         name: gpuscale-provider-credentials
-        namespace: gpuscale-system
+        namespace: gpu-workloads
       capacityType: spot
       maxPrice: 0.50
       nodeType: ray-worker

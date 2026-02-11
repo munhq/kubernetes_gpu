@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "gpuscale.fullname" . }}-controller
-  namespace: gpuscale-system
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "gpuscale.labels" . | nindent 4 }}
 spec:
@@ -35,6 +35,10 @@ spec:
             - --cooldown-period={{ .Values.controller.cooldownPeriod }}
             - --interruption-poll-interval={{ .Values.controller.interruptionPollInterval }}
           env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
             - name: RAY_HEAD_ADDRESS
               valueFrom:
                 configMapKeyRef:

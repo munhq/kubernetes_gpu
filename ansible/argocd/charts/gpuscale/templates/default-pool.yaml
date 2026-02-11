@@ -9,7 +9,7 @@ spec:
     - name: {{ .name }}
       apiKeySecret:
         name: {{ .apiKeySecret.name }}
-        namespace: {{ .apiKeySecret.namespace | default "gpuscale-system" }}
+        namespace: {{ .apiKeySecret.namespace | default $.Release.Namespace }}
       capacityType: {{ .capacityType | default "spot" }}
       {{- if .maxPrice }}
       maxPrice: {{ .maxPrice }}

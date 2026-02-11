@@ -49,4 +49,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: {{ include "gpuscale.serviceAccountName" . }}
-    namespace: gpuscale-system
+    namespace: {{ .Release.Namespace }}
