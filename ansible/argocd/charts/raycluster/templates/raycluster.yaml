@@ -40,11 +40,12 @@ spec:
       rayStartParams:
         dashboard-host: '0.0.0.0'
         num-cpus: '0'
+        num-gpus: '0'
         metrics-export-port: '8080'
       template:
         spec:
-          nodeSelector:
-            nvidia.com/gpu.present: "true"
+          # Head runs on any node (including utility-server with no GPU).
+          # Only workers need GPU nodeSelector.
           tolerations:
           - key: nvidia.com/gpu
             operator: Exists
