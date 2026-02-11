@@ -12,20 +12,22 @@ spec:
       route_prefix: "/"
       args:
         llm_configs:
+        {{- range .Values.models }}
         - model_loading_config:
-            model_id: {{ .Values.serve.modelId }}
-            model_source: {{ .Values.serve.modelSource }}
+            model_id: {{ .id }}
+            model_source: {{ .source }}
           engine_kwargs:
-            dtype: {{ .Values.serve.dtype | default "auto" }}
-            max_model_len: {{ .Values.serve.maxModelLen | default 1024 }}
-            gpu_memory_utilization: {{ .Values.serve.gpuMemoryUtilization | default 0.75 }}
+            dtype: auto
+            max_model_len: {{ .maxModelLen }}
+            gpu_memory_utilization: {{ .gpuUtilization | default 0.90 }}
             trust_remote_code: true
+            enable_prefix_caching: true
           deployment_config:
             autoscaling_config:
-              min_replicas: {{ .Values.serve.minReplicas | default 1 }}
-              max_replicas: {{ .Values.serve.maxReplicas | default 2 }}
-              target_ongoing_requests: {{ .Values.serve.targetOngoingRequests | default 8 }}
-            max_ongoing_requests: {{ .Values.serve.maxOngoingRequests | default 16 }}
+              min_replicas: {{ .minReplicas }}
+              max_replicas: {{ .maxReplicas }}
+              target_ongoing_requests: {{ .targetOngoingRequests }}
+        {{- end }}
 
   rayClusterConfig:
     rayVersion: {{ .Values.rayVersion | quote }}
@@ -49,7 +51,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: ray-head
-            image: "{{ .Values.head.image }}"
+            image: {{ .Values.head.image | quote }}
             env:
             - name: RAY_SERVE_HTTP_HOST
               value: "0.0.0.0"
@@ -91,7 +93,7 @@ spec:
             effect: NoSchedule
           containers:
           - name: ray-worker
-            image: "{{ .Values.workers.image }}"
+            image: {{ .Values.workers.image | quote }}
             lifecycle:
               preStop:
                 exec:
@@ -113,3 +115,25 @@ spec:
             hostPath:
               path: {{ .Values.workers.modelsHostPath }}
               type: DirectoryOrCreate
+---
+{{- if .Values.gcsNodePort.enabled }}
+# Expose Ray head GCS port for external ray-workers (cloud instances provisioned
+# by GPUScale) to join the cluster without VPN. They connect via:
+#   ray start --address=<publicIP>:{{ .Values.gcsNodePort.port }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.clusterName }}-gcs-external
+  labels:
+    ray.io/cluster: {{ .Values.clusterName }}
+spec:
+  type: NodePort
+  selector:
+    ray.io/cluster: {{ .Values.clusterName }}-raycluster
+    ray.io/node-type: head
+  ports:
+  - name: gcs
+    port: 6379
+    targetPort: 6379
+    nodePort: {{ .Values.gcsNodePort.port }}
+{{- end }}

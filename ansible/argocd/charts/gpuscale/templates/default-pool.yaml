@@ -1,0 +1,61 @@
+{{- if .Values.defaultPool.enabled }}
+apiVersion: gpuscale.io/v1alpha1
+kind: GPUNodePool
+metadata:
+  name: {{ .Values.defaultPool.name | default "spot-gpu-pool" }}
+spec:
+  providers:
+    {{- range .Values.defaultPool.providers }}
+    - name: {{ .name }}
+      apiKeySecret:
+        name: {{ .apiKeySecret.name }}
+        namespace: {{ .apiKeySecret.namespace | default "gpuscale-system" }}
+      capacityType: {{ .capacityType | default "spot" }}
+      {{- if .maxPrice }}
+      maxPrice: {{ .maxPrice }}
+      {{- end }}
+      nodeType: {{ .nodeType | default "ray-worker" }}
+    {{- end }}
+  requirements:
+    {{- if .Values.defaultPool.requirements.gpuTypes }}
+    gpuTypes:
+      {{- toYaml .Values.defaultPool.requirements.gpuTypes | nindent 6 }}
+    {{- end }}
+    minVRAM: {{ .Values.defaultPool.requirements.minVRAM | default 10 }}
+    minDisk: {{ .Values.defaultPool.requirements.minDisk | default 50 }}
+    minRAM: {{ .Values.defaultPool.requirements.minRAM | default 16 }}
+  scaling:
+    batchWindow: {{ .Values.defaultPool.scaling.batchWindow | default "10s" }}
+    cooldownPeriod: {{ .Values.defaultPool.scaling.cooldownPeriod | default "10m" }}
+    maxNodes: {{ .Values.defaultPool.scaling.maxNodes | default 6 }}
+    minNodes: {{ .Values.defaultPool.scaling.minNodes | default 0 }}
+  bootstrap:
+    image: {{ .Values.defaultPool.bootstrap.image | default "vllm/vllm-openai:latest" }}
+    {{- if .Values.defaultPool.bootstrap.rayConfig }}
+    rayConfig:
+      servePort: {{ .Values.defaultPool.bootstrap.rayConfig.servePort | default 8000 }}
+      {{- if .Values.defaultPool.bootstrap.rayConfig.headAddress }}
+      headAddress: {{ .Values.defaultPool.bootstrap.rayConfig.headAddress }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.defaultPool.bootstrap.modelConfig }}
+    modelConfig:
+      modelId: {{ .Values.defaultPool.bootstrap.modelConfig.modelId | quote }}
+      maxModelLen: {{ .Values.defaultPool.bootstrap.modelConfig.maxModelLen | default 4096 }}
+      dtype: {{ .Values.defaultPool.bootstrap.modelConfig.dtype | default "auto" }}
+      gpuMemoryUtilization: {{ .Values.defaultPool.bootstrap.modelConfig.gpuMemoryUtilization | default 0.90 }}
+      trustRemoteCode: {{ .Values.defaultPool.bootstrap.modelConfig.trustRemoteCode | default false }}
+    {{- end }}
+    {{- if .Values.defaultPool.bootstrap.modelCacheURL }}
+    modelCacheURL: {{ .Values.defaultPool.bootstrap.modelCacheURL }}
+    {{- end }}
+  {{- if .Values.defaultPool.limits }}
+  limits:
+    {{- if .Values.defaultPool.limits.maxGPUs }}
+    maxGPUs: {{ .Values.defaultPool.limits.maxGPUs }}
+    {{- end }}
+    {{- if .Values.defaultPool.limits.maxCostPerHour }}
+    maxCostPerHour: {{ .Values.defaultPool.limits.maxCostPerHour }}
+    {{- end }}
+  {{- end }}
+{{- end }}

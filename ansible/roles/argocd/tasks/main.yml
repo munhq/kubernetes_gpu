@@ -132,6 +132,63 @@
       data:
         api-key: "{{ gpu_api_secret | b64encode }}"
 
+- name: Create gpuscale-system namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: gpuscale-system
+
+- name: Create GHCR pull secret for gpuscale-system
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: ghcr-secret
+        namespace: gpuscale-system
+      type: kubernetes.io/dockerconfigjson
+      data:
+        .dockerconfigjson: "{{ dockerconfig | to_json | b64encode }}"
+  vars:
+    dockerconfig:
+      auths:
+        ghcr.io:
+          username: munhq
+          password: "{{ vault_ghcr_pull_token }}"
+          auth: "{{ ('munhq:' + vault_ghcr_pull_token) | b64encode }}"
+
+- name: Create GPUScale ray head config
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: gpuscale-ray-config
+        namespace: gpuscale-system
+      data:
+        ray-head-address: "{{ hostvars['utility-server']['ansible_host'] }}:31637"
+        redis-url: "dragonfly.gpu-workloads.svc.cluster.local:6379"
+
+- name: Create GPUScale provider credentials
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: gpuscale-provider-credentials
+        namespace: gpuscale-system
+      type: Opaque
+      data:
+        vastai-api-key: "{{ vault_vastai_api_key | b64encode }}"
+        verda-client-id: "{{ vault_verda_client_id | b64encode }}"
+        verda-client-secret: "{{ vault_verda_client_secret | b64encode }}"
+
 - name: Apply ApplicationSets bootstrap (auto-syncs from git)
   kubernetes.core.k8s:
     state: present

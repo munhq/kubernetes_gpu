@@ -1,0 +1,81 @@
+{{- if .Values.keda.enabled }}
+# KEDA demand-driven GPU scaling for multi-model RayService.
+#
+# How it works:
+# 1. KEDA monitors gpu_api_active_requests_by_model per model via Prometheus
+# 2. When requests exceed threshold → KEDA scales up the demand-signal Deployment
+# 3. Demand-signal pods request GPU but have an impossible nodeSelector → stay Pending
+# 4. GPUScale provisioner sees Pending GPU pods → provisions cloud GPU instances
+# 5. Cloud instances join the Ray cluster → Ray Serve gains capacity → loads models
+# 6. When load drops → KEDA scales down → demand pods deleted → GPUScale deprovisions
+#
+# The demand-signal pods never actually run — they trigger GPUScale provisioning.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-demand-{{ .Values.clusterName }}
+  labels:
+    app: gpu-demand
+    gpuscale.io/demand-signal: "true"
+spec:
+  replicas: 0  # KEDA controls this
+  selector:
+    matchLabels:
+      app: gpu-demand
+      cluster: {{ .Values.clusterName }}
+  template:
+    metadata:
+      labels:
+        app: gpu-demand
+        cluster: {{ .Values.clusterName }}
+      annotations:
+        gpuscale.io/demand-signal: "true"
+        {{- $maxVRAM := 0 }}
+        {{- range .Values.models }}
+        {{- if gt (int .minVRAM) $maxVRAM }}
+        {{- $maxVRAM = (int .minVRAM) }}
+        {{- end }}
+        {{- end }}
+        gpuscale.io/min-vram: {{ $maxVRAM | quote }}
+    spec:
+      # Impossible nodeSelector — pods never schedule. They exist only as demand signals.
+      nodeSelector:
+        gpuscale.io/demand-signal: "true"
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      terminationGracePeriodSeconds: 0
+      containers:
+      - name: demand-signal
+        image: registry.k8s.io/pause:3.9
+        resources:
+          requests:
+            nvidia.com/gpu: {{ .Values.workers.gpusPerWorker | default 1 }}
+          limits:
+            nvidia.com/gpu: {{ .Values.workers.gpusPerWorker | default 1 }}
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: gpu-demand-{{ .Values.clusterName }}
+  labels:
+    app: gpu-demand
+spec:
+  scaleTargetRef:
+    name: gpu-demand-{{ .Values.clusterName }}
+  minReplicaCount: 0
+  maxReplicaCount: {{ .Values.keda.maxReplicaCount | default 6 }}
+  cooldownPeriod: {{ .Values.keda.cooldownPeriod | default 300 }}
+  pollingInterval: {{ .Values.keda.pollingInterval | default 30 }}
+  triggers:
+  {{- range .Values.models }}
+  - type: prometheus
+    metadata:
+      serverAddress: {{ $.Values.keda.prometheusAddress | default "http://prometheus-operated.monitoring.svc.cluster.local:9090" }}
+      metricName: gpu_api_active_requests_{{ .id | replace "-" "_" }}
+      query: |
+        gpu_api_active_requests_by_model{model="{{ .id }}"}
+      threshold: {{ .targetOngoingRequests | default "5" | quote }}
+  {{- end }}
+{{- end }}

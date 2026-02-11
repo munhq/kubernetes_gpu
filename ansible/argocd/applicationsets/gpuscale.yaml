@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: raycluster
+  name: gpuscale
   namespace: argocd
 spec:
   goTemplate: true
@@ -9,21 +9,27 @@ spec:
     - list:
         elements:
           - env: gpu
-            namespace: gpu-workloads
+            namespace: gpuscale-system
             project: gpu
   template:
     metadata:
-      name: 'rayservice'
+      name: 'gpuscale'
       namespace: argocd
       labels:
-        app: raycluster
+        app: gpuscale
         environment: '{{ .env }}'
     spec:
       project: '{{ .project }}'
-      source:
-        repoURL: https://github.com/munhq/kubernetes_gpu.git
-        targetRevision: main
-        path: ansible/argocd/charts/raycluster
+      sources:
+        - repoURL: https://github.com/munhq/kubernetes_gpu.git
+          targetRevision: main
+          path: ansible/argocd/charts/gpuscale
+          helm:
+            valueFiles:
+              - $values/ansible/argocd/config/gpuscale/values.yaml
+        - repoURL: https://github.com/munhq/kubernetes_gpu.git
+          targetRevision: main
+          ref: values
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{ .namespace }}'

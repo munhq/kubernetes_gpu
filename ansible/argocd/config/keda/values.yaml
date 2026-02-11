@@ -1,0 +1,29 @@
+# KEDA operator configuration
+# Scales Ray worker replicas based on GPU API request metrics
+
+resources:
+  operator:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  metricServer:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# Prometheus is in the monitoring namespace
+prometheus:
+  metricServer:
+    enabled: true
+
+logging:
+  operator:
+    level: info
+  metricServer:
+    level: "0"

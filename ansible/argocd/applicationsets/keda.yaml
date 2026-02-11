@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: keda
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          - env: gpu
+            namespace: keda
+            project: gpu
+            helmRepo: https://kedacore.github.io/charts
+            helmChart: keda
+            helmVersion: 2.16.1
+  template:
+    metadata:
+      name: 'keda'
+      namespace: argocd
+      labels:
+        app: keda
+        environment: '{{ .env }}'
+    spec:
+      project: '{{ .project }}'
+      sources:
+        - repoURL: '{{ .helmRepo }}'
+          chart: '{{ .helmChart }}'
+          targetRevision: '{{ .helmVersion }}'
+          helm:
+            releaseName: keda
+            valueFiles:
+              - $values/ansible/argocd/config/keda/values.yaml
+        - repoURL: https://github.com/munhq/kubernetes_gpu.git
+          targetRevision: main
+          ref: values
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .namespace }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

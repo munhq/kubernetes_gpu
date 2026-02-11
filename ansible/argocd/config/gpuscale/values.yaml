@@ -1,0 +1,56 @@
+# GPUScale controller — production config.
+# Provider API keys are in K8s Secret gpuscale-provider-credentials,
+# created by the argocd Ansible role from vault variables.
+
+imagePullSecrets:
+  - name: ghcr-secret
+
+providers:
+  vastai:
+    enabled: true
+    existingSecret: gpuscale-provider-credentials
+    existingSecretKey: vastai-api-key
+  verda:
+    enabled: true
+    existingSecret: gpuscale-provider-credentials
+    existingSecretClientIDKey: verda-client-id
+    existingSecretClientSecretKey: verda-client-secret
+  runpod:
+    enabled: false
+
+# Default GPU node pool — Vast.ai + Verda ray-workers joining the Ray cluster
+defaultPool:
+  enabled: true
+  name: spot-gpu-pool
+  providers:
+    - name: vast.ai
+      apiKeySecret:
+        name: gpuscale-provider-credentials
+        namespace: gpuscale-system
+      capacityType: spot
+      maxPrice: 0.50
+      nodeType: ray-worker
+    - name: verda
+      apiKeySecret:
+        name: gpuscale-provider-credentials
+        namespace: gpuscale-system
+      capacityType: spot
+      maxPrice: 0.50
+      nodeType: ray-worker
+  requirements:
+    minVRAM: 10
+    minDisk: 50
+    minRAM: 16
+  scaling:
+    batchWindow: "10s"
+    cooldownPeriod: "10m"
+    maxNodes: 6
+    minNodes: 0
+  bootstrap:
+    image: "rayproject/ray-llm:2.53.0-py311-cu128"
+    # Ray head address is injected via ConfigMap (gpuscale-ray-config)
+    # created by Ansible from inventory (utility-server IP + GCS NodePort 31637).
+    # Controller reads RAY_HEAD_ADDRESS env var as fallback when pool spec is empty.
+  limits:
+    maxGPUs: 12
+    maxCostPerHour: 3.00
