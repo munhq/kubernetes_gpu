@@ -1,6 +1,25 @@
 ---
 # ArgoCD Bootstrap - Helm-based install (matches kubernetes-tf pattern)
 
+# Resolve K3s facts if not already set (allows running with --tags argocd alone)
+- name: Read K3s VPN IP
+  ansible.builtin.command: ip -4 addr show wt0
+  register: _wt0_output
+  changed_when: false
+  when: k3s_server_url is not defined
+
+- name: Read K3s token
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: _k3s_token_raw
+  when: k3s_token is not defined
+
+- name: Set K3s facts for argocd role
+  ansible.builtin.set_fact:
+    k3s_server_url: "https://{{ _wt0_output.stdout | regex_search('inet (\\S+)/', '\\1') | first | regex_replace('/.*', '') }}:6443"
+    k3s_token: "{{ _k3s_token_raw.content | b64decode | trim }}"
+  when: k3s_server_url is not defined
+
 - name: Add ArgoCD Helm repository
   ansible.builtin.command: >
     helm repo add argo https://argoproj.github.io/argo-helm

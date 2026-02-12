@@ -1,0 +1,41 @@
+---
+# Create a swap file if one doesn't exist.
+# Prevents OOM kills on memory-constrained nodes.
+
+- name: Check if swap file exists
+  ansible.builtin.stat:
+    path: /swapfile
+  register: swap_file
+
+- name: Create swap file
+  ansible.builtin.command: fallocate -l {{ swap_size | default('4G') }} /swapfile
+  when: not swap_file.stat.exists
+
+- name: Set swap file permissions
+  ansible.builtin.file:
+    path: /swapfile
+    mode: "0600"
+    owner: root
+    group: root
+  when: not swap_file.stat.exists
+
+- name: Format swap file
+  ansible.builtin.command: mkswap /swapfile
+  when: not swap_file.stat.exists
+
+- name: Enable swap
+  ansible.builtin.command: swapon /swapfile
+  when: not swap_file.stat.exists
+
+- name: Add swap to fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    line: "/swapfile none swap sw 0 0"
+    state: present
+
+- name: Set swappiness (low — only use swap under pressure)
+  ansible.posix.sysctl:
+    name: vm.swappiness
+    value: "10"
+    state: present
+    reload: true
