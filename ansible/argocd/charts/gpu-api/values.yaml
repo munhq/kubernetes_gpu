@@ -61,7 +61,7 @@ env:
   - name: JOB_TTL_SECONDS
     value: "604800"
   - name: MODELS_CONFIG
-    value: '[{"id":"glm-4-7","source":"hf:zai-org/GLM-4.7","vramRequired":16,"maxModelLen":8192,"alwaysActive":false,"minReplicas":0,"maxReplicas":4,"targetOngoingRequests":8,"capacityType":"spot","maxPricePerGPU":0.50},{"id":"qwen-2.5-3b","source":"hf:Qwen/Qwen2.5-3B-Instruct","vramRequired":8,"alwaysActive":true,"minReplicas":1,"maxReplicas":2,"targetOngoingRequests":8,"capacityType":"spot","maxPricePerGPU":0.10}]'
+    value: '[{"id":"qwen-2.5-3b","source":"hf:Qwen/Qwen2.5-3B-Instruct","vramRequired":8,"alwaysActive":false,"minReplicas":0,"maxReplicas":2,"targetOngoingRequests":8,"capacityType":"spot","maxPricePerGPU":0.10}]'
   # Provider credentials — reuse the same secret GPUScale uses (created by Ansible)
   - name: VASTAI_API_KEY
     valueFrom:
