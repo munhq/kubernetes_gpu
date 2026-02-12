@@ -12,31 +12,24 @@ gcsFaultTolerance:
 models:
   - id: glm-4-7
     source: "hf:zai-org/GLM-4.7"
+    vramRequired: 16
     minReplicas: 0
     maxReplicas: 4
     numGpus: 1
-    minVRAM: 24
     maxModelLen: 8192
     gpuUtilization: 0.90
     targetOngoingRequests: 8
-  - id: minimax-m2-1
-    source: "hf:MiniMaxAI/MiniMax-M2.1"
-    minReplicas: 0
-    maxReplicas: 4
+    alwaysActive: false
+  - id: qwen-2.5-3b
+    source: "hf:Qwen/Qwen2.5-3B-Instruct"
+    vramRequired: 8
+    minReplicas: 1
+    maxReplicas: 2
     numGpus: 1
-    minVRAM: 48
     maxModelLen: 4096
     gpuUtilization: 0.90
-    targetOngoingRequests: 4
-  - id: kimi-k2-5
-    source: "hf:moonshotai/Kimi-K2.5"
-    minReplicas: 0
-    maxReplicas: 2
-    numGpus: 2
-    minVRAM: 80
-    maxModelLen: 8192
-    gpuUtilization: 0.90
-    targetOngoingRequests: 2
+    targetOngoingRequests: 8
+    alwaysActive: true
 
 head:
   image: rayproject/ray-llm:2.53.0-py311-cu128
@@ -71,9 +64,11 @@ gcsNodePort:
   enabled: true
   port: 31637
 
-# KEDA demand-driven scaling (requires KEDA operator installed)
+# KEDA demand-driven scaling — DISABLED.
+# GPU API now triggers provisioning directly via the Provisioner.
+# KEDA stays installed but is no longer used for GPU scaling.
 keda:
-  enabled: true
+  enabled: false
   prometheusAddress: "http://prometheus-operated.monitoring.svc.cluster.local:9090"
   maxReplicaCount: 6
   cooldownPeriod: 300

@@ -1,9 +1,9 @@
 # Traefik Helm values
 # Ingress controller for routing external traffic
 
-# High availability with 3 replicas
+# Single replica — only one node in the cluster
 deployment:
-  replicas: 3
+  replicas: 1
 
 # Use LoadBalancer service (MetalLB will assign IP)
 service:
