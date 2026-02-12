@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'gpu-api/**'
+      - 'pkg/provider/**'
   workflow_dispatch:
 
 env:
@@ -32,6 +33,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./gpu-api
+          context: .
+          file: ./gpu-api/Dockerfile
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
