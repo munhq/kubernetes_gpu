@@ -55,13 +55,13 @@ env:
   - name: RAY_DASHBOARD_URL
     value: "http://rayservice-head-svc:8265"
   - name: DEFAULT_MODEL
-    value: "qwen-2.5-3b"
+    value: "glm-4-7b-flash"
   - name: REDIS_URL
     value: "dragonfly.gpu-workloads.svc.cluster.local:6379"
   - name: JOB_TTL_SECONDS
     value: "604800"
   - name: MODELS_CONFIG
-    value: '[{"id":"qwen-2.5-3b","source":"hf:Qwen/Qwen2.5-3B-Instruct","vramRequired":8,"alwaysActive":false,"minReplicas":0,"maxReplicas":2,"targetOngoingRequests":8,"capacityType":"spot","maxPricePerGPU":0.10}]'
+    value: '[{"id":"glm-4-7b-flash","source":"hf:zai-org/GLM-4.7-Flash","vramRequired":20,"maxModelLen":8192,"alwaysActive":false,"minReplicas":0,"maxReplicas":2,"targetOngoingRequests":8,"capacityType":"spot","maxPricePerGPU":0.15},{"id":"qwen3-coder-30b","source":"hf:Qwen/Qwen3-Coder-30B-A3B-Instruct","vramRequired":18,"maxModelLen":8192,"alwaysActive":false,"minReplicas":0,"maxReplicas":2,"targetOngoingRequests":8,"capacityType":"spot","maxPricePerGPU":0.15}]'
   # Provider credentials — reuse the same secret GPUScale uses (created by Ansible)
   - name: VASTAI_API_KEY
     valueFrom:
