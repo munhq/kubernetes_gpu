@@ -37,3 +37,4 @@ jobs:
           file: ./gpu-api/Dockerfile
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          no-cache: true
