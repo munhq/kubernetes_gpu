@@ -22,11 +22,14 @@ spec:
             gpu_memory_utilization: {{ .gpuUtilization | default 0.90 }}
             trust_remote_code: true
             enable_prefix_caching: true
+            tensor_parallel_size: {{ .numGpus | default 1 }}
           deployment_config:
             autoscaling_config:
               min_replicas: {{ .minReplicas }}
               max_replicas: {{ .maxReplicas }}
               target_ongoing_requests: {{ .targetOngoingRequests }}
+            ray_actor_options:
+              num_gpus: {{ .numGpus | default 1 }}
         {{- end }}
 
   rayClusterConfig:

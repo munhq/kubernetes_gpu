@@ -31,6 +31,12 @@ rbac:
     - apiGroups: ["ray.io"]
       resources: ["rayjobs"]
       verbs: ["create", "get", "list", "watch", "delete"]
+    - apiGroups: ["gpuscale.io"]
+      resources: ["gpunodeclaims"]
+      verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+    - apiGroups: ["gpuscale.io"]
+      resources: ["gpunodeclaims/status"]
+      verbs: ["get", "update", "patch"]
 
 serviceMonitor:
   enabled: true
@@ -49,10 +55,55 @@ env:
   - name: RAY_DASHBOARD_URL
     value: "http://rayservice-head-svc:8265"
   - name: DEFAULT_MODEL
-    value: "glm-4-7"
+    value: "qwen-2.5-3b"
   - name: REDIS_URL
     value: "dragonfly.gpu-workloads.svc.cluster.local:6379"
   - name: JOB_TTL_SECONDS
     value: "604800"
   - name: MODELS_CONFIG
-    value: '[{"id":"glm-4-7","source":"hf:zai-org/GLM-4.7","minVRAM":24,"minGPUs":1,"targetOngoingRequests":8},{"id":"minimax-m2-1","source":"hf:MiniMaxAI/MiniMax-M2.1","minVRAM":48,"minGPUs":1,"targetOngoingRequests":4},{"id":"kimi-k2-5","source":"hf:moonshotai/Kimi-K2.5","minVRAM":80,"minGPUs":2,"targetOngoingRequests":2}]'
+    value: '[{"id":"glm-4-7","source":"hf:zai-org/GLM-4.7","vramRequired":16,"maxModelLen":8192,"alwaysActive":false,"minReplicas":0,"maxReplicas":4,"targetOngoingRequests":8,"capacityType":"spot","maxPricePerGPU":0.50},{"id":"qwen-2.5-3b","source":"hf:Qwen/Qwen2.5-3B-Instruct","vramRequired":8,"alwaysActive":true,"minReplicas":1,"maxReplicas":2,"targetOngoingRequests":8,"capacityType":"spot","maxPricePerGPU":0.10}]'
+  # Provider credentials — reuse the same secret GPUScale uses (created by Ansible)
+  - name: VASTAI_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: gpuscale-provider-credentials
+        key: vastai-api-key
+  - name: VERDA_CLIENT_ID
+    valueFrom:
+      secretKeyRef:
+        name: gpuscale-provider-credentials
+        key: verda-client-id
+  - name: VERDA_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: gpuscale-provider-credentials
+        key: verda-client-secret
+  # GPUNodeClaim namespace for K8s client
+  - name: CLAIM_NAMESPACE
+    value: "gpu-workloads"
+  # Ray head GCS address — external workers join via: ray start --address=<this>
+  # Populated by Ansible from utility-server IP + GCS NodePort 31637
+  - name: RAY_HEAD_GCS_ADDRESS
+    valueFrom:
+      configMapKeyRef:
+        name: gpuscale-ray-config
+        key: ray-head-address
+  # Full-node secrets (optional — only needed if any model uses nodeType: "full-node")
+  - name: NETBIRD_SETUP_KEY
+    valueFrom:
+      secretKeyRef:
+        name: gpuscale-provider-credentials
+        key: netbird-setup-key
+        optional: true
+  - name: K8S_JOIN_URL
+    valueFrom:
+      secretKeyRef:
+        name: gpuscale-provider-credentials
+        key: k8s-join-url
+        optional: true
+  - name: K8S_JOIN_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: gpuscale-provider-credentials
+        key: k8s-join-token
+        optional: true

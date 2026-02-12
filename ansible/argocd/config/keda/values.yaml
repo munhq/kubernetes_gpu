@@ -1,29 +1,28 @@
-# KEDA operator configuration
-# Scales Ray worker replicas based on GPU API request metrics
+# KEDA operator — NOT USED for GPU scaling (GPU API provisions directly).
+# Kept installed at minimal resources in case needed for other workloads.
 
 resources:
   operator:
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 10m
+      memory: 32Mi
     limits:
-      cpu: 500m
-      memory: 256Mi
+      cpu: 100m
+      memory: 64Mi
   metricServer:
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 10m
+      memory: 32Mi
     limits:
-      cpu: 500m
-      memory: 256Mi
+      cpu: 100m
+      memory: 64Mi
 
-# Prometheus is in the monitoring namespace
 prometheus:
   metricServer:
-    enabled: true
+    enabled: false
 
 logging:
   operator:
-    level: info
+    level: error
   metricServer:
     level: "0"
