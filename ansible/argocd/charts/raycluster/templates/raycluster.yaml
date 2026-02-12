@@ -59,12 +59,6 @@ spec:
             env:
             - name: RAY_SERVE_HTTP_HOST
               value: "0.0.0.0"
-            - name: HF_HOME
-              value: /opt/models/huggingface
-            - name: TRANSFORMERS_CACHE
-              value: /opt/models/huggingface
-            - name: VLLM_WORKER_MULTIPROC_METHOD
-              value: spawn
             ports:
             - containerPort: 6379
               name: gcs

@@ -32,14 +32,16 @@ models:
     alwaysActive: true
 
 head:
-  image: rayproject/ray-llm:2.53.0-py311-cu128
+  # Lighter image — head only routes requests via Ray Serve, no inference/CUDA needed.
+  # Workers (K8s pods + cloud instances) use the full ray-llm image.
+  image: rayproject/ray:2.53.0-py311
   resources:
     limits:
       cpu: "1"
-      memory: "2Gi"
+      memory: "1Gi"
     requests:
       cpu: "250m"
-      memory: "512Mi"
+      memory: "384Mi"
 
 workers:
   replicas: 0
