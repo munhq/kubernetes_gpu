@@ -37,11 +37,11 @@ head:
   image: rayproject/ray-llm:2.53.0-py311-cu128
   resources:
     limits:
-      cpu: "1"
-      memory: "2Gi"
+      cpu: "2"
+      memory: "3Gi"
     requests:
-      cpu: "250m"
-      memory: "768Mi"
+      cpu: "500m"
+      memory: "1Gi"
 
 workers:
   replicas: 0
