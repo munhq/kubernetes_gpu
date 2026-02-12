@@ -24,11 +24,13 @@ spec:
             enable_prefix_caching: true
             tensor_parallel_size: {{ .numGpus | default 1 }}
           deployment_config:
+            max_ongoing_requests: {{ .maxOngoingRequests | default 24 }}
             autoscaling_config:
               min_replicas: {{ .minReplicas }}
               max_replicas: {{ .maxReplicas }}
               target_ongoing_requests: {{ .targetOngoingRequests }}
             ray_actor_options:
+              num_cpus: 1
               num_gpus: {{ .numGpus | default 1 }}
         {{- end }}
 
@@ -45,6 +47,8 @@ spec:
         num-cpus: '0'
         num-gpus: '0'
         metrics-export-port: '8080'
+        object-store-memory: '100000000'
+        disable-usage-stats: 'true'
       template:
         spec:
           # Head runs on any node (including utility-server with no GPU).
@@ -56,9 +60,17 @@ spec:
           containers:
           - name: ray-head
             image: {{ .Values.head.image | quote }}
+            lifecycle:
+              preStop:
+                exec:
+                  command: ["/bin/sh", "-c", "ray stop"]
             env:
             - name: RAY_SERVE_HTTP_HOST
               value: "0.0.0.0"
+            - name: VLLM_WORKER_MULTIPROC_METHOD
+              value: spawn
+            - name: HF_HOME
+              value: /tmp/hf_cache
             ports:
             - containerPort: 6379
               name: gcs
