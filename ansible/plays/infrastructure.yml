@@ -10,6 +10,7 @@
 
   roles:
     - { role: base,  tags: ["base", "infrastructure"] }
+    - { role: swap,  tags: ["swap", "infrastructure"] }
 
 - name: infrastructure.yml | Netbird VPN (all nodes)
   hosts: all
