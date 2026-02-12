@@ -14,16 +14,16 @@ grafana:
   # Persist Grafana dashboards
   persistence:
     enabled: true
-    size: 10Gi
+    size: 2Gi
 
   # Resource limits
   resources:
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 50m
+      memory: 64Mi
     limits:
-      cpu: 500m
-      memory: 512Mi
+      cpu: 250m
+      memory: 256Mi
 
   # Install Grafana plugins synchronously before server starts
   # _SYNC variant blocks startup until plugin is installed, ensuring it's
@@ -95,7 +95,7 @@ grafana:
 prometheus:
   prometheusSpec:
     # Retention period
-    retention: 30d
+    retention: 7d
 
     # Storage
     storageSpec:
@@ -104,32 +104,24 @@ prometheus:
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
-              storage: 50Gi
+              storage: 10Gi
 
     # Resource limits
     resources:
       requests:
-        cpu: 500m
-        memory: 2Gi
+        cpu: 200m
+        memory: 512Mi
       limits:
-        cpu: 2000m
-        memory: 4Gi
+        cpu: 1000m
+        memory: 1Gi
 
     # Service monitors - automatically discover services
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
 
-# AlertManager configuration
+# AlertManager — disabled, not configured with any receivers
 alertmanager:
-  enabled: true
-  alertmanagerSpec:
-    storage:
-      volumeClaimTemplate:
-        spec:
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 10Gi
+  enabled: false
 
 # Node exporter for host metrics
 nodeExporter:

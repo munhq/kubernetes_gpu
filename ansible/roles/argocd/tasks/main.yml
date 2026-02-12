@@ -179,6 +179,9 @@
         vastai-api-key: "{{ vault_vastai_api_key | b64encode }}"
         verda-client-id: "{{ vault_verda_client_id | b64encode }}"
         verda-client-secret: "{{ vault_verda_client_secret | b64encode }}"
+        netbird-setup-key: "{{ vault_gpu_netbird_setup_key | b64encode }}"
+        k8s-join-url: "{{ k3s_server_url | b64encode }}"
+        k8s-join-token: "{{ k3s_token | b64encode }}"
 
 - name: Apply ApplicationSets bootstrap (auto-syncs from git)
   kubernetes.core.k8s:
