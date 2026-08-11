@@ -2,6 +2,8 @@
 # Provider API keys are in K8s Secret gpuscale-provider-credentials,
 # created by the argocd Ansible role from vault variables.
 
+redisURL: "dragonfly.database.svc.cluster.local:6379"
+
 imagePullSecrets:
   - name: ghcr-secret
 
@@ -17,8 +19,23 @@ providers:
     existingSecretClientSecretKey: verda-client-secret
   runpod:
     enabled: false
+  gcp:
+    enabled: false
+    existingSecret: gpuscale-provider-credentials
+    existingSecretKey: gcp-service-account-json
+    projectID: ""       # GCP project ID
+    zones: "us-central1-a,us-east1-d,europe-west4-a"
+  aws:
+    enabled: false
+    existingSecret: gpuscale-provider-credentials
+    existingSecretKeyID: aws-access-key-id
+    existingSecretAccessKey: aws-secret-access-key
+    region: "us-east-1"
+    subnetID: ""        # optional: leave empty to use default VPC
+    securityGroupID: "" # optional: leave empty to use default security group
 
-# Default GPU node pool — Vast.ai + Verda ray-workers joining the Ray cluster
+# Default GPU node pool — Vast.ai containers running gpu-agent + vLLM directly.
+# No K3s, no Ray. gpu-agent connects outbound WSS tunnel to GPU API.
 defaultPool:
   enabled: true
   name: spot-gpu-pool
@@ -29,28 +46,65 @@ defaultPool:
         namespace: gpu-workloads
       capacityType: spot
       maxPrice: 0.50
-      nodeType: ray-worker
+      nodeType: standalone
+  requirements:
+    minVRAM: 10
+    minDisk: 50
+    minRAM: 16
+    minPCIeGen: 4
+  scaling:
+    batchWindow: "10s"
+    cooldownPeriod: "2m"
+    maxNodes: 6
+    minNodes: 0
+  bootstrap:
+    # Container image — vllm/vllm-openai has vLLM pre-installed; gpu-agent starts it as a child process.
+    image: "vllm/vllm-openai:latest"
+    # Reached by gpu-agent from the provisioned GPU node, which runs at the
+    # provider and is not a cluster member — this must be publicly resolvable.
+    # An in-cluster name (gpu-api.gpu-workloads.svc.cluster.local:8000) will not
+    # resolve from there and bootstrap will hang.
+    gpuApiURL: "wss://gpu-api.example.com"
+    gpuApiTokenSecret:
+      name: gpuscale-bootstrap-secrets
+      namespace: gpu-workloads
+      key: gpu-api-token
+  limits:
+    maxGPUs: 12
+    maxCostPerHour: 3.00
+
+# Verda pool — A100 spot VMs running gpu-agent + vLLM via pip install.
+# No K3s, no Ray. gpu-agent connects outbound WSS tunnel to GPU API.
+verdaPool:
+  enabled: true
+  name: verda-gpu-pool
+  providers:
     - name: verda
       apiKeySecret:
         name: gpuscale-provider-credentials
         namespace: gpu-workloads
       capacityType: spot
       maxPrice: 0.50
-      nodeType: ray-worker
+      nodeType: standalone
   requirements:
-    minVRAM: 10
-    minDisk: 50
-    minRAM: 16
+    minDisk: 100
+    minRAM: 32
   scaling:
     batchWindow: "10s"
-    cooldownPeriod: "10m"
-    maxNodes: 6
+    cooldownPeriod: "2m"
+    billingPeriod: "10m"
+    maxNodes: 2
     minNodes: 0
   bootstrap:
-    image: "rayproject/ray-llm:2.53.0-py311-cu128"
-    # Ray head address is injected via ConfigMap (gpuscale-ray-config)
-    # created by Ansible from inventory (utility-server IP + GCS NodePort 31637).
-    # Controller reads RAY_HEAD_ADDRESS env var as fallback when pool spec is empty.
+    # Reached by gpu-agent from the provisioned GPU node, which runs at the
+    # provider and is not a cluster member — this must be publicly resolvable.
+    # An in-cluster name (gpu-api.gpu-workloads.svc.cluster.local:8000) will not
+    # resolve from there and bootstrap will hang.
+    gpuApiURL: "wss://gpu-api.example.com"
+    gpuApiTokenSecret:
+      name: gpuscale-bootstrap-secrets
+      namespace: gpu-workloads
+      key: gpu-api-token
   limits:
-    maxGPUs: 12
-    maxCostPerHour: 3.00
+    maxGPUs: 4
+    maxCostPerHour: 2.00

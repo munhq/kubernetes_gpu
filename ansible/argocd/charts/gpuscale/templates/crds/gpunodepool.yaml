@@ -73,8 +73,8 @@ spec:
                         type: number
                       nodeType:
                         type: string
-                        enum: ["k3s", "ray-worker"]
-                        default: "k3s"
+                        enum: ["standalone"]
+                        default: "standalone"
                 requirements:
                   type: object
                   properties:
@@ -88,6 +88,9 @@ spec:
                       type: integer
                     minRAM:
                       type: integer
+                    minPCIeGen:
+                      type: integer
+                      description: Minimum PCIe generation required (e.g., 4 for PCIe 4.0).
                 scaling:
                   type: object
                   required: ["maxNodes"]
@@ -108,56 +111,21 @@ spec:
                       default: "30s"
                 bootstrap:
                   type: object
-                  required: ["image"]
                   properties:
                     image:
                       type: string
-                    vpnSetupKeySecret:
-                      type: object
-                      properties:
-                        name:
-                          type: string
-                        namespace:
-                          type: string
-                    k3sTokenSecret:
-                      type: object
-                      properties:
-                        name:
-                          type: string
-                        namespace:
-                          type: string
-                    k3sURL:
+                    gpuApiURL:
                       type: string
-                    rayConfig:
+                      description: WSS endpoint for gpu-agent tunnel (wss://gpu-api-host).
+                    gpuApiTokenSecret:
                       type: object
                       properties:
-                        dashboardPort:
-                          type: integer
-                          default: 8265
-                        servePort:
-                          type: integer
-                          default: 8000
-                        headAddress:
+                        name:
                           type: string
-                        serveConfig:
+                        namespace:
                           type: string
-                    modelConfig:
-                      type: object
-                      required: ["modelId"]
-                      properties:
-                        modelId:
+                        key:
                           type: string
-                        maxModelLen:
-                          type: integer
-                        dtype:
-                          type: string
-                          default: "auto"
-                        gpuMemoryUtilization:
-                          type: number
-                          default: 0.90
-                        trustRemoteCode:
-                          type: boolean
-                          default: false
                     modelCacheURL:
                       type: string
                 limits:

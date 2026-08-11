@@ -3,14 +3,14 @@ replicaCount: 1
 image:
   repository: ghcr.io/munhq/gpuscale-controller
   tag: latest
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 imagePullSecrets: []
 
 # Controller configuration
 controller:
   batchWindow: "10s"
-  cooldownPeriod: "10m"
+  cooldownPeriod: "2m"
   interruptionPollInterval: "30s"
 
 # Provider credentials — use existingSecret to reference a pre-created K8s Secret,
@@ -33,6 +33,20 @@ providers:
     existingSecret: ""
     existingSecretClientIDKey: "client-id"
     existingSecretClientSecretKey: "client-secret"
+  gcp:
+    enabled: false
+    existingSecret: ""
+    existingSecretKey: "service-account-json"
+    projectID: ""
+    zones: "us-central1-a,us-east1-d,europe-west4-a"
+  aws:
+    enabled: false
+    existingSecret: ""
+    existingSecretKeyID: "access-key-id"
+    existingSecretAccessKey: "secret-access-key"
+    region: "us-east-1"
+    subnetID: ""
+    securityGroupID: ""
 
 # Default GPUNodePool (creates a pool CR on install)
 defaultPool:
@@ -45,26 +59,23 @@ defaultPool:
   #       namespace: gpuscale-system
   #     capacityType: spot
   #     maxPrice: 0.50
-  #     nodeType: ray-worker
+  #     nodeType: standalone
   requirements:
     minVRAM: 10
     minDisk: 50
     minRAM: 16
   scaling:
     batchWindow: "10s"
-    cooldownPeriod: "10m"
+    cooldownPeriod: "2m"
     maxNodes: 6
     minNodes: 0
   bootstrap:
     image: "vllm/vllm-openai:latest"
-    rayConfig:
-      servePort: 8000
-    modelConfig:
-      modelId: "THUDM/glm-4-9b-chat"
-      maxModelLen: 4096
-      dtype: auto
-      gpuMemoryUtilization: 0.90
-      trustRemoteCode: false
+    gpuApiURL: ""
+    gpuApiTokenSecret:
+      name: ""
+      namespace: ""
+      key: gpu-api-token
   limits:
     maxGPUs: 12
     maxCostPerHour: 3.00
@@ -88,3 +99,7 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+# Optional second pool, disabled by default.
+verdaPool:
+  enabled: false

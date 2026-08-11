@@ -4,6 +4,9 @@ metadata:
   name: gpuscale
   namespace: argocd
 spec:
+  ignoreApplicationDifferences:
+    - jsonPointers:
+        - /spec/sources/0/helm/parameters
   goTemplate: true
   generators:
     - list:
@@ -20,14 +23,23 @@ spec:
         environment: '{{ .env }}'
     spec:
       project: '{{ .project }}'
+      # Let keel own the live image: it patches the Deployment to a new :latest
+      # digest in-cluster, and without this selfHeal would revert it to the chart
+      # value on every sync (bouncy deploys vs keel). Paired with
+      # RespectIgnoreDifferences below.
+      ignoreDifferences:
+        - group: apps
+          kind: Deployment
+          jqPathExpressions:
+            - .spec.template.spec.containers[].image
       sources:
-        - repoURL: https://github.com/munhq/kubernetes_gpu.git
+        - repoURL: https://github.com/munhq/k3s-gpu.git
           targetRevision: main
           path: ansible/argocd/charts/gpuscale
           helm:
             valueFiles:
               - $values/ansible/argocd/config/gpuscale/values.yaml
-        - repoURL: https://github.com/munhq/kubernetes_gpu.git
+        - repoURL: https://github.com/munhq/k3s-gpu.git
           targetRevision: main
           ref: values
       destination:
@@ -39,3 +51,6 @@ spec:
           selfHeal: true
         syncOptions:
           - CreateNamespace=true
+          # Honor the image ignoreDifferences above so a git sync doesn't stomp
+          # the live image back to the chart value (bouncy deploys vs keel).
+          - RespectIgnoreDifferences=true

@@ -14,7 +14,7 @@ spec:
       {{- if .maxPrice }}
       maxPrice: {{ .maxPrice }}
       {{- end }}
-      nodeType: {{ .nodeType | default "ray-worker" }}
+      nodeType: {{ .nodeType | default "standalone" }}
     {{- end }}
   requirements:
     {{- if .Values.defaultPool.requirements.gpuTypes }}
@@ -24,30 +24,42 @@ spec:
     minVRAM: {{ .Values.defaultPool.requirements.minVRAM | default 10 }}
     minDisk: {{ .Values.defaultPool.requirements.minDisk | default 50 }}
     minRAM: {{ .Values.defaultPool.requirements.minRAM | default 16 }}
+    {{- if .Values.defaultPool.requirements.minPCIeGen }}
+    minPCIeGen: {{ .Values.defaultPool.requirements.minPCIeGen }}
+    {{- end }}
   scaling:
     batchWindow: {{ .Values.defaultPool.scaling.batchWindow | default "10s" }}
     cooldownPeriod: {{ .Values.defaultPool.scaling.cooldownPeriod | default "10m" }}
     maxNodes: {{ .Values.defaultPool.scaling.maxNodes | default 6 }}
     minNodes: {{ .Values.defaultPool.scaling.minNodes | default 0 }}
   bootstrap:
-    image: {{ .Values.defaultPool.bootstrap.image | default "vllm/vllm-openai:latest" }}
-    {{- if .Values.defaultPool.bootstrap.rayConfig }}
-    rayConfig:
-      servePort: {{ .Values.defaultPool.bootstrap.rayConfig.servePort | default 8000 }}
-      {{- if .Values.defaultPool.bootstrap.rayConfig.headAddress }}
-      headAddress: {{ .Values.defaultPool.bootstrap.rayConfig.headAddress }}
-      {{- end }}
+    {{- if .Values.defaultPool.bootstrap.image }}
+    image: {{ .Values.defaultPool.bootstrap.image }}
     {{- end }}
-    {{- if .Values.defaultPool.bootstrap.modelConfig }}
-    modelConfig:
-      modelId: {{ .Values.defaultPool.bootstrap.modelConfig.modelId | quote }}
-      maxModelLen: {{ .Values.defaultPool.bootstrap.modelConfig.maxModelLen | default 4096 }}
-      dtype: {{ .Values.defaultPool.bootstrap.modelConfig.dtype | default "auto" }}
-      gpuMemoryUtilization: {{ .Values.defaultPool.bootstrap.modelConfig.gpuMemoryUtilization | default 0.90 }}
-      trustRemoteCode: {{ .Values.defaultPool.bootstrap.modelConfig.trustRemoteCode | default false }}
+    {{- if .Values.defaultPool.bootstrap.gpuApiURL }}
+    gpuApiURL: {{ .Values.defaultPool.bootstrap.gpuApiURL }}
+    {{- end }}
+    {{- if .Values.defaultPool.bootstrap.gpuApiTokenSecret.name }}
+    gpuApiTokenSecret:
+      name: {{ .Values.defaultPool.bootstrap.gpuApiTokenSecret.name }}
+      namespace: {{ .Values.defaultPool.bootstrap.gpuApiTokenSecret.namespace | default $.Release.Namespace }}
+      key: {{ .Values.defaultPool.bootstrap.gpuApiTokenSecret.key | default "gpu-api-token" }}
     {{- end }}
     {{- if .Values.defaultPool.bootstrap.modelCacheURL }}
     modelCacheURL: {{ .Values.defaultPool.bootstrap.modelCacheURL }}
+    {{- end }}
+    {{- if .Values.defaultPool.bootstrap.vpnSetupKeySecret }}
+    vpnSetupKeySecret:
+      name: {{ .Values.defaultPool.bootstrap.vpnSetupKeySecret.name }}
+      namespace: {{ .Values.defaultPool.bootstrap.vpnSetupKeySecret.namespace | default $.Release.Namespace }}
+    {{- end }}
+    {{- if .Values.defaultPool.bootstrap.k8sTokenSecret }}
+    k8sTokenSecret:
+      name: {{ .Values.defaultPool.bootstrap.k8sTokenSecret.name }}
+      namespace: {{ .Values.defaultPool.bootstrap.k8sTokenSecret.namespace | default $.Release.Namespace }}
+    {{- end }}
+    {{- if .Values.defaultPool.bootstrap.k8sURL }}
+    k8sURL: {{ .Values.defaultPool.bootstrap.k8sURL }}
     {{- end }}
   {{- if .Values.defaultPool.limits }}
   limits:

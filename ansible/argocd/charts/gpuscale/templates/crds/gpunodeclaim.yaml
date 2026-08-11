@@ -26,7 +26,7 @@ spec:
           jsonPath: .spec.poolRef
         - name: Provider
           type: string
-          jsonPath: .status.provider
+          jsonPath: .spec.provider
         - name: Type
           type: string
           jsonPath: .status.nodeType
@@ -62,6 +62,24 @@ spec:
               properties:
                 poolRef:
                   type: string
+                provider:
+                  type: string
+                  description: Provider name, set at creation time to survive status update failures.
+                nodeType:
+                  type: string
+                  enum: ["standalone"]
+                  description: Deployment mode, set at creation time to survive status update failures.
+                modelId:
+                  type: string
+                  description: Model this claim was provisioned for.
+                modelIds:
+                  type: array
+                  items:
+                    type: string
+                  description: All model IDs co-located on this node (multi-model bin-packing).
+                modelSource:
+                  type: string
+                  description: HuggingFace source for the model (e.g. hf:Qwen/Qwen3-Coder-Next).
                 requirements:
                   type: object
                   properties:
@@ -69,12 +87,18 @@ spec:
                       type: integer
                     minVRAM:
                       type: integer
+                    maxVRAM:
+                      type: integer
+                      description: Maximum VRAM per GPU in GB. Prevents over-provisioning.
                     gpuTypes:
                       type: array
                       items:
                         type: string
                     maxPrice:
                       type: number
+                    minDisk:
+                      type: integer
+                      description: Minimum OS volume size in GB. Used by VM providers to size the disk at creation time.
                 podRefs:
                   type: array
                   items:
@@ -95,7 +119,7 @@ spec:
                   type: string
                 nodeType:
                   type: string
-                  enum: ["k3s", "ray-worker"]
+                  enum: ["standalone"]
                 nodeName:
                   type: string
                 endpoint:
@@ -108,7 +132,7 @@ spec:
                   type: number
                 phase:
                   type: string
-                  enum: ["Pending", "Provisioning", "Bootstrapping", "Ready", "Draining", "Terminated"]
+                  enum: ["Pending", "Provisioning", "Bootstrapping", "Ready", "Draining", "Terminated", "Hibernated"]
                 provisionedAt:
                   type: string
                   format: date-time
@@ -118,6 +142,9 @@ spec:
                 idleSince:
                   type: string
                   format: date-time
+                retryCount:
+                  type: integer
+                  description: Tracks provisioning retry count for exponential backoff.
                 conditions:
                   type: array
                   items:
