@@ -41,8 +41,28 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams.
 | GPU API | Go REST API — auth, Prometheus metrics, fires jobs to Ray Serve | `gpu-api/` |
 | RayService | Persistent vLLM cluster via KubeRay operator | `ansible/argocd/charts/raycluster/` |
 | Dragonfly | Job persistence (DB 1) + Ray GCS fault tolerance (DB 0) | `ansible/argocd/charts/dragonfly/` |
+| provisioner | GPU node autoscaler — provisions GPU workers from spot providers, drains them when idle | `ansible/argocd/charts/provisioner/` |
 | Ansible | Infrastructure provisioning — base, VPN, NVIDIA, K3s, ArgoCD | `ansible/roles/` |
 | Monitoring | Prometheus, Grafana, DCGM exporter, node-exporter | Deployed via ArgoCD |
+
+## GPU autoscaling with provisioner
+
+`provisioner` is deployed as part of this platform through ArgoCD. It watches for pending GPU
+workloads, searches the configured providers for the cheapest offer that meets the requirement,
+provisions the instance, waits for it to serve, and destroys it when demand goes.
+
+```
+ansible/argocd/applicationsets/provisioner.yaml   ApplicationSet
+ansible/argocd/charts/provisioner/                Helm chart — CRDs, RBAC, controller Deployment
+ansible/argocd/config/provisioner/values.yaml     enabled providers and the node pools
+```
+
+Enable a provider in `config/provisioner/values.yaml` and supply its credentials through
+`existingSecret`. The chart renders two CRDs (`NodePool`, `NodeClaim`), a ClusterRole and
+binding, a ServiceAccount and the controller Deployment.
+
+The controller source and a standalone chart live in a separate repository:
+**https://github.com/munhq/provisioner**
 
 ## Docs
 
