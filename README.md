@@ -1,28 +1,49 @@
-# KubeRay Batch Inference
+# kubernetes_gpu
 
-Distributed batch inference for Qwen2.5-0.5B using KubeRay, vLLM, and K3s across GPU workers.
-
-## What it does
+**Deploy this and you have an LLM inference API running on your own GPUs.** Submit a job over HTTP, get results back. A dashboard, per-GPU metrics and autoscaling come with it. One variable decides where the GPUs come from.
 
 ```bash
-# Submit a batch job
-curl -X POST http://localhost:8000/v1/batches \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-api-key" \
-  -d '{
-    "model": "Qwen/Qwen2.5-0.5B-Instruct",
-    "input": [
-      {"prompt": "What is 2+2?"},
-      {"prompt": "Hello world"}
-    ],
-    "max_tokens": 50
-  }'
-
-# Poll for results
-curl http://localhost:8000/v1/batches/{job_id} -H "X-API-Key: your-api-key"
+ansible-playbook ansible/plays/infrastructure.yml     # bare metal / cloud hosts → K3s + NVIDIA runtime
+ansible-playbook ansible/plays/platform.yml           # cluster services
+ansible-playbook ansible/plays/argocd.yml             # everything else, via GitOps
 ```
 
-Jobs fire immediately to vLLM via Ray Serve — no queuing, no cold starts. The model stays loaded in GPU memory. Results are persisted in Dragonfly (Redis-compatible) for 7 days.
+Then:
+
+```bash
+curl -X POST http://<host>:8000/v1/batches \
+  -H "Content-Type: application/json" -H "X-API-Key: $KEY" \
+  -d '{"model":"Qwen/Qwen2.5-0.5B-Instruct","input":[{"prompt":"What is 2+2?"}],"max_tokens":50}'
+
+curl http://<host>:8000/v1/batches/{job_id} -H "X-API-Key: $KEY"
+```
+
+Jobs fire straight at a model that is already resident in GPU memory — no queue, no cold start. Results persist in Dragonfly for 7 days.
+
+## Two ways to get GPUs — pick one with a variable
+
+```bash
+ansible-playbook ansible/plays/argocd.yml -e gpu_execution_path=gpuscale
+```
+
+| `gpu_execution_path` | GPUs come from | Shape |
+|---|---|---|
+| `ray` | Nodes you already own, joined to the cluster | KubeRay operator + RayCluster hold vLLM warm in-cluster |
+| `gpuscale` | Bought on demand from seven providers — AWS, Azure, GCP, RunPod, Vast.ai, TensorDock, Verda | Each GPU runs an agent and vLLM directly. No K3s on the node, no Ray. Scales to zero |
+| `both` *(default)* | Both at once | For comparing them side by side |
+
+It works by setting `directory.exclude` on the ArgoCD ApplicationSets bootstrap, so the path you did not pick is never rendered. Switching later is a re-run — ArgoCD prunes what left the set.
+
+## What you get after the three playbooks
+
+- **An OpenAI-shaped batch API** with API-key auth, on port 8000, with a dashboard UI.
+- **A warm vLLM cluster** — the model stays loaded, so submitted work starts immediately.
+- **Per-GPU metrics** — DCGM exporter gives memory, utilisation and temperature per card; the API exposes 10 Prometheus metrics of its own; Grafana dashboards ship with it.
+- **Autoscaling** — KEDA on the Ray path, gpuscale buying spot capacity on the other.
+- **GitOps** — ArgoCD with an app-of-apps and 13 ApplicationSets, so the cluster converges on the repo.
+- **A private overlay** — all K3s traffic runs over a WireGuard mesh, so nodes can sit in different clouds.
+
+The GPU autoscaler is a separate project: **[munhq/gpuscale](https://github.com/munhq/gpuscale)**.
 
 ## Architecture
 
