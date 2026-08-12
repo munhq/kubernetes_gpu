@@ -45,6 +45,26 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams.
 | Ansible | Infrastructure provisioning — base, VPN, NVIDIA, K3s, ArgoCD | `ansible/roles/` |
 | Monitoring | Prometheus, Grafana, DCGM exporter, node-exporter | Deployed via ArgoCD |
 
+## Choosing an execution path
+
+The platform ships two ways to run inference, and they are independent:
+
+| `gpu_execution_path` | What deploys | Shape |
+|---|---|---|
+| `ray` | KubeRay operator + RayCluster + the batch API | Ray Serve holds vLLM warm inside the cluster |
+| `gpuscale` | the gpuscale controller | GPU nodes run an agent and vLLM directly, no Ray, no K3s on the node |
+| `both` (default) | everything | side by side, for comparing them |
+
+Set it in inventory or on the command line:
+
+```bash
+ansible-playbook ansible/plays/argocd.yml -e gpu_execution_path=gpuscale
+```
+
+It works by setting `directory.exclude` on the ApplicationSets bootstrap Application, so ArgoCD
+simply never renders the manifests for the path you did not pick. Switching later is a re-run:
+ArgoCD prunes what left the set and syncs what entered it.
+
 ## GPU autoscaling with gpuscale
 
 `gpuscale` is deployed as part of this platform through ArgoCD. It watches for pending GPU

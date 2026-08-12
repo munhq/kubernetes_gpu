@@ -216,9 +216,16 @@
       spec:
         project: infrastructure
         source:
-          repoURL: https://github.com/munhq/kubernetes_gpu.git
-          targetRevision: main
+          repoURL: "{{ argocd_bootstrap_repo_url }}"
+          targetRevision: "{{ argocd_repo_revision }}"
           path: ansible/argocd/applicationsets
+          directory:
+            recurse: false
+            # gpu_execution_path selects which inference path is deployed:
+            #   both     — Ray/KubeRay and gpuscale side by side (default)
+            #   ray      — KubeRay + RayCluster only; gpuscale is not applied
+            #   gpuscale — gpuscale only; KubeRay and RayCluster are not applied
+            exclude: "{{ gpu_execution_path_exclude[gpu_execution_path] }}"
         destination:
           server: https://kubernetes.default.svc
           namespace: "{{ argocd_namespace }}"

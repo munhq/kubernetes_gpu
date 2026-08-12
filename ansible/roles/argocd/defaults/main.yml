@@ -5,3 +5,15 @@ argocd_nodeport: 30443
 argocd_repo_url: ""
 argocd_repo_revision: main
 argocd_apps_path: argocd/apps
+
+# Which inference execution path to deploy: both | ray | gpuscale
+gpu_execution_path: both
+
+# ArgoCD directory-exclude globs per path. Do not edit unless you rename files.
+gpu_execution_path_exclude:
+  both: ""
+  ray: "gpuscale.yaml"
+  gpuscale: "{kuberay-operator.yaml,raycluster.yaml}"
+
+# Repo the ApplicationSets bootstrap pulls from
+argocd_bootstrap_repo_url: https://github.com/munhq/kubernetes_gpu.git
