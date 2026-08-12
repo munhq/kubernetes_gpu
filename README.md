@@ -34,7 +34,7 @@ ansible-playbook ansible/plays/argocd.yml -e gpu_execution_path=gpuscale
 
 It works by setting `directory.exclude` on the ArgoCD ApplicationSets bootstrap, so the path you did not pick is never rendered. Switching later is a re-run — ArgoCD prunes what left the set.
 
-## What you get after the three playbooks
+## What the three playbooks install
 
 - **An OpenAI-shaped batch API** with API-key auth, on port 8000, with a dashboard UI.
 - **A warm vLLM cluster** — the model stays loaded, so submitted work starts immediately.
@@ -50,7 +50,7 @@ The GPU autoscaler is a separate project: **[munhq/gpuscale](https://github.com/
 - **Control plane**: K3s on Hetzner (utility-server) — runs ArgoCD, GPU API, Dragonfly, monitoring
 - **GPU workers**: 2x RunPod instances, 2x RTX 5060 Ti each (4 GPUs total)
 - **Networking**: Netbird VPN overlay — all K3s traffic goes through encrypted WireGuard tunnel
-- **Model**: Qwen/Qwen2.5-0.5B-Instruct, always loaded in GPU memory (no cold starts)
+- **Model**: Qwen/Qwen2.5-0.5B-Instruct, kept loaded in GPU memory
 - **GitOps**: ArgoCD with App of Apps pattern, 13 ApplicationSets
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams.
