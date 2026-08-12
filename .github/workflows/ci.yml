@@ -1,0 +1,64 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  go:
+    name: gpu-api
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: gpu-api/go.mod
+          cache-dependency-path: gpu-api/go.sum
+      - name: Vet
+        working-directory: gpu-api
+        run: go vet ./...
+      - name: Build
+        working-directory: gpu-api
+        run: go build ./...
+      - name: Test
+        working-directory: gpu-api
+        run: go test ./...
+
+  charts:
+    name: helm charts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Lint and render every chart
+        run: |
+          rc=0
+          for c in ansible/argocd/charts/*/; do
+            echo "::group::$c"
+            helm lint "$c" || rc=1
+            helm template "$(basename "$c")" "$c" >/dev/null || rc=1
+            echo "::endgroup::"
+          done
+          exit $rc
+
+  ansible:
+    name: ansible
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet ansible-core ansible-lint yamllint
+      - name: Syntax check every play
+        run: |
+          rc=0
+          for p in ansible/plays/*.yml; do
+            ansible-playbook --syntax-check -i localhost, "$p" || rc=1
+          done
+          exit $rc
+      - name: ansible-lint
+        run: ansible-lint ansible/roles ansible/plays || true
+      - name: yamllint
+        run: yamllint -d relaxed ansible/ || true
