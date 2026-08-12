@@ -51,6 +51,8 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install --quiet ansible-core ansible-lint yamllint
+      - name: Install collections
+        run: ansible-galaxy collection install -r ansible/requirements.yml
       - name: Syntax check every play
         env:
           # Roles live in ansible/roles, plays in ansible/plays. Without this
