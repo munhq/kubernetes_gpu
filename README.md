@@ -1,6 +1,6 @@
 # kubernetes_gpu
 
-**Deploy this and you have an LLM inference API running on your own GPUs.** Submit a job over HTTP, get results back. A dashboard, per-GPU metrics and autoscaling come with it. One variable decides where the GPUs come from.
+kubernetes_gpu deploys an LLM inference API on your own GPUs. Submit a job over HTTP and fetch the result. A dashboard, per-GPU metrics and autoscaling are included. One variable selects where the GPUs come from.
 
 ```bash
 ansible-playbook ansible/plays/infrastructure.yml     # bare metal / cloud hosts → K3s + NVIDIA runtime
@@ -18,9 +18,9 @@ curl -X POST http://<host>:8000/v1/batches \
 curl http://<host>:8000/v1/batches/{job_id} -H "X-API-Key: $KEY"
 ```
 
-Jobs fire straight at a model that is already resident in GPU memory — no queue, no cold start. Results persist in Dragonfly for 7 days.
+Jobs run against a model that is already resident in GPU memory — no queue and no cold start. Results persist in Dragonfly for 7 days.
 
-## Two ways to get GPUs — pick one with a variable
+## Execution paths
 
 ```bash
 ansible-playbook ansible/plays/argocd.yml -e gpu_execution_path=gpuscale
@@ -40,7 +40,7 @@ It works by setting `directory.exclude` on the ArgoCD ApplicationSets bootstrap,
 - **A warm vLLM cluster** — the model stays loaded, so submitted work starts immediately.
 - **Per-GPU metrics** — DCGM exporter gives memory, utilisation and temperature per card; the API exposes 10 Prometheus metrics of its own; Grafana dashboards ship with it.
 - **Autoscaling** — KEDA on the Ray path, gpuscale buying spot capacity on the other.
-- **GitOps** — ArgoCD with an app-of-apps and 13 ApplicationSets, so the cluster converges on the repo.
+- **GitOps** — ArgoCD with an app-of-apps and 13 ApplicationSets. The cluster converges on the repo.
 - **A private overlay** — all K3s traffic runs over a WireGuard mesh, so nodes can sit in different clouds.
 
 The GPU autoscaler is a separate project: **[munhq/gpuscale](https://github.com/munhq/gpuscale)**.
@@ -51,7 +51,7 @@ The GPU autoscaler is a separate project: **[munhq/gpuscale](https://github.com/
 - **GPU workers**: 2x RunPod instances, 2x RTX 5060 Ti each (4 GPUs total)
 - **Networking**: Netbird VPN overlay — all K3s traffic goes through encrypted WireGuard tunnel
 - **Model**: Qwen/Qwen2.5-0.5B-Instruct, always loaded in GPU memory (no cold starts)
-- **GitOps**: ArgoCD with App of Apps pattern, 11 ApplicationSets
+- **GitOps**: ArgoCD with App of Apps pattern, 13 ApplicationSets
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams.
 
@@ -65,26 +65,6 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams.
 | gpuscale | GPU node autoscaler — provisions GPU workers from spot providers, drains them when idle | `ansible/argocd/charts/gpuscale/` |
 | Ansible | Infrastructure provisioning — base, VPN, NVIDIA, K3s, ArgoCD | `ansible/roles/` |
 | Monitoring | Prometheus, Grafana, DCGM exporter, node-exporter | Deployed via ArgoCD |
-
-## Choosing an execution path
-
-The platform ships two ways to run inference, and they are independent:
-
-| `gpu_execution_path` | What deploys | Shape |
-|---|---|---|
-| `ray` | KubeRay operator + RayCluster + the batch API | Ray Serve holds vLLM warm inside the cluster |
-| `gpuscale` | the gpuscale controller | GPU nodes run an agent and vLLM directly, no Ray, no K3s on the node |
-| `both` (default) | everything | side by side, for comparing them |
-
-Set it in inventory or on the command line:
-
-```bash
-ansible-playbook ansible/plays/argocd.yml -e gpu_execution_path=gpuscale
-```
-
-It works by setting `directory.exclude` on the ApplicationSets bootstrap Application, so ArgoCD
-simply never renders the manifests for the path you did not pick. Switching later is a re-run:
-ArgoCD prunes what left the set and syncs what entered it.
 
 ## GPU autoscaling with gpuscale
 
@@ -127,7 +107,7 @@ ansible/
   roles/                  # base, netbird, nvidia_runtime, k3s_server, k3s_agent, argocd
   inventory/              # hosts, vault-encrypted secrets
   argocd/
-    applicationsets/      # 11 ArgoCD ApplicationSet manifests
+    applicationsets/      # 13 ArgoCD ApplicationSet manifests
     charts/               # Custom Helm charts (gpu-api, raycluster, dragonfly)
     config/               # Helm values overrides per app
 ```
