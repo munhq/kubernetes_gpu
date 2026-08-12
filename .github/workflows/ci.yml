@@ -52,6 +52,10 @@ jobs:
           python-version: "3.12"
       - run: pip install --quiet ansible-core ansible-lint yamllint
       - name: Syntax check every play
+        env:
+          # Roles live in ansible/roles, plays in ansible/plays. Without this
+          # ansible resolves roles relative to the play and finds nothing.
+          ANSIBLE_ROLES_PATH: ${{ github.workspace }}/ansible/roles
         run: |
           rc=0
           for p in ansible/plays/*.yml; do
