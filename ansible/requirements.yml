@@ -5,4 +5,3 @@ collections:
   - name: community.general
   - name: kubernetes.core
   - name: ansible.posix
-  - name: community.github
