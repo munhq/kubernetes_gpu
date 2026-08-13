@@ -6,24 +6,6 @@ on:
   pull_request:
 
 jobs:
-  go:
-    name: gpu-api
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: gpu-api/go.mod
-          cache-dependency-path: gpu-api/go.sum
-      - name: Vet
-        working-directory: gpu-api
-        run: go vet ./...
-      - name: Build
-        working-directory: gpu-api
-        run: go build ./...
-      - name: Test
-        working-directory: gpu-api
-        run: go test ./...
 
   charts:
     name: helm charts

@@ -1,6 +1,6 @@
 # kubernetes_gpu
 
-kubernetes_gpu deploys an LLM inference API on your own GPUs. Submit a job over HTTP and fetch the result. A dashboard, per-GPU metrics and autoscaling are included. One variable selects where the GPUs come from.
+kubernetes_gpu deploys an LLM inference API on your own GPUs. The API service itself lives in [munhq/gpu-api](https://github.com/munhq/gpu-api); this repo is the Kubernetes setup that deploys it. Submit a job over HTTP and fetch the result. A dashboard, per-GPU metrics and autoscaling are included. One variable selects where the GPUs come from.
 
 ```bash
 ansible-playbook ansible/plays/infrastructure.yml     # bare metal / cloud hosts → K3s + NVIDIA runtime
@@ -59,7 +59,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams.
 
 | Component | What | Where |
 |---|---|---|
-| GPU API | Go REST API — auth, Prometheus metrics, fires jobs to Ray Serve | `gpu-api/` |
+| GPU API | Go REST API — auth, Prometheus metrics, sends jobs to Ray Serve | [munhq/gpu-api](https://github.com/munhq/gpu-api) |
 | RayService | Persistent vLLM cluster via KubeRay operator | `ansible/argocd/charts/raycluster/` |
 | Dragonfly | Job persistence (DB 1) + Ray GCS fault tolerance (DB 0) | `ansible/argocd/charts/dragonfly/` |
 | gpuscale | GPU node autoscaler — provisions GPU workers from spot providers, drains them when idle | `ansible/argocd/charts/gpuscale/` |
@@ -93,15 +93,12 @@ The controller source and a standalone chart live in a separate repository:
 - [decissions.md](decissions.md) — why K3s, why Ansible, why not Kueue, etc.
 - [future.md](future.md) — scaling thoughts (Kueue, NATS, multi-cluster)
 - [REQUIREMENTS_VALIDATION.md](REQUIREMENTS_VALIDATION.md) — how requirements map to implementation
-- [gpu-api/README.md](gpu-api/README.md) — API reference
+- [munhq/gpu-api](https://github.com/munhq/gpu-api) — the API service and its reference
 - [ansible/README.md](ansible/README.md) — playbook reference
 
 ## Repo structure
 
 ```
-gpu-api/                  # Go REST API
-  main.go, handlers.go, queue.go, store.go, metrics.go, rayclient.go, dashboard.html, Dockerfile
-
 ansible/
   plays/                  # infrastructure.yml → platform.yml → argocd.yml
   roles/                  # base, netbird, nvidia_runtime, k3s_server, k3s_agent, argocd
