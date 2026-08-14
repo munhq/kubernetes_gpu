@@ -1,6 +1,6 @@
 # kubernetes_gpu
 
-kubernetes_gpu deploys an LLM inference API on your own GPUs. The API service itself lives in [munhq/gpu-api](https://github.com/munhq/gpu-api); this repo is the Kubernetes setup that deploys it. Submit a job over HTTP and fetch the result. A dashboard, per-GPU metrics and autoscaling are included. One variable selects where the GPUs come from.
+kubernetes_gpu deploys an LLM inference API on your own GPUs. The API service itself lives in [munhq/gpu-api-ray](https://github.com/munhq/gpu-api-ray); this repo is the Kubernetes setup that deploys it. Submit a job over HTTP and fetch the result. A dashboard, per-GPU metrics and autoscaling are included. One variable selects where the GPUs come from.
 
 ```bash
 ansible-playbook ansible/plays/infrastructure.yml     # bare metal / cloud hosts → K3s + NVIDIA runtime
@@ -59,7 +59,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams.
 
 | Component | What | Where |
 |---|---|---|
-| GPU API | Go REST API — auth, Prometheus metrics, sends jobs to Ray Serve | [munhq/gpu-api](https://github.com/munhq/gpu-api) |
+| GPU API | Go REST API — auth, Prometheus metrics, sends jobs to Ray Serve | [munhq/gpu-api-ray](https://github.com/munhq/gpu-api-ray) |
 | RayService | Persistent vLLM cluster via KubeRay operator | `ansible/argocd/charts/raycluster/` |
 | Dragonfly | Job persistence (DB 1) + Ray GCS fault tolerance (DB 0) | `ansible/argocd/charts/dragonfly/` |
 | gpuscale | GPU node autoscaler — provisions GPU workers from spot providers, drains them when idle | `ansible/argocd/charts/gpuscale/` |
@@ -89,7 +89,7 @@ The controller source and a standalone chart live in a separate repository:
 
 - [DEPLOYMENT.md](DEPLOYMENT.md) — deploy from scratch
 - [ARCHITECTURE.md](ARCHITECTURE.md) — current system + future multi-datacenter vision
-- [munhq/gpu-api](https://github.com/munhq/gpu-api) — the API service and its reference
+- [munhq/gpu-api-ray](https://github.com/munhq/gpu-api-ray) — the API service and its reference
 - [ansible/README.md](ansible/README.md) — playbook reference
 
 ## Repo structure
