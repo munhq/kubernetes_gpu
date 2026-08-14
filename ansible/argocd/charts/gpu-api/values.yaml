@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/munhq/gpu-api
+  repository: ghcr.io/munhq/gpu-api-ray
   pullPolicy: Always
   tag: "latest"
 
