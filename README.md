@@ -89,10 +89,6 @@ The controller source and a standalone chart live in a separate repository:
 
 - [DEPLOYMENT.md](DEPLOYMENT.md) — deploy from scratch
 - [ARCHITECTURE.md](ARCHITECTURE.md) — current system + future multi-datacenter vision
-- [questions.md](questions.md) — technical Q&A (output format, storage, load balancing, KPIs, KubeRay integration)
-- [decissions.md](decissions.md) — why K3s, why Ansible, why not Kueue, etc.
-- [future.md](future.md) — scaling thoughts (Kueue, NATS, multi-cluster)
-- [REQUIREMENTS_VALIDATION.md](REQUIREMENTS_VALIDATION.md) — how requirements map to implementation
 - [munhq/gpu-api](https://github.com/munhq/gpu-api) — the API service and its reference
 - [ansible/README.md](ansible/README.md) — playbook reference
 
