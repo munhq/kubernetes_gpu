@@ -65,13 +65,3 @@ workers:
 gcsNodePort:
   enabled: true
   port: 31637
-
-# KEDA demand-driven scaling — DISABLED.
-# GPU API now triggers provisioning directly via the Provisioner.
-# KEDA stays installed but is no longer used for GPU scaling.
-keda:
-  enabled: false
-  prometheusAddress: "http://prometheus-operated.monitoring.svc.cluster.local:9090"
-  maxReplicaCount: 6
-  cooldownPeriod: 300
-  pollingInterval: 30

@@ -1,0 +1,34 @@
+---
+# Variables for k3s_server group (K8s control plane + utility workloads)
+
+# Netbird
+netbird_setup_key: "{{ vault_netbird_setup_key }}"
+
+k3s_version: "v1.35.0+k3s3"
+k3s_config_dir: /etc/rancher/k3s
+k3s_data_dir: /var/lib/rancher/k3s
+
+k3s_disable:
+  - traefik
+  - servicelb
+  - local-storage
+
+k3s_kubelet_args:
+  - "max-pods=250"
+
+# etcd tuning
+sysctl_settings_server:
+  vm.dirty_ratio: 10
+  vm.dirty_background_ratio: 5
+
+# Namespaces Ansible creates (ArgoCD creates the rest)
+namespaces:
+  - argocd
+
+# Node labels for targeting utility workloads (Prometheus, Grafana, ArgoCD)
+k3s_node_labels:
+  node-role.kubernetes.io/control-plane: "true"
+  workload-type: "utilities"
+
+# NO taint - this node can run utility workloads
+# GPU nodes are tainted, so non-GPU pods will land here

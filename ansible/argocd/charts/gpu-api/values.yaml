@@ -31,12 +31,6 @@ rbac:
     - apiGroups: ["ray.io"]
       resources: ["rayjobs"]
       verbs: ["create", "get", "list", "watch", "delete"]
-    - apiGroups: ["provisioner.internal"]
-      resources: ["nodeclaims"]
-      verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
-    - apiGroups: ["provisioner.internal"]
-      resources: ["nodeclaims/status"]
-      verbs: ["get", "update", "patch"]
 
 serviceMonitor:
   enabled: true
@@ -60,50 +54,7 @@ env:
     value: "dragonfly.gpu-workloads.svc.cluster.local:6379"
   - name: JOB_TTL_SECONDS
     value: "604800"
+  # Model catalogue. Ray Serve holds each entry warm and scales its replicas
+  # between minReplicas and maxReplicas on targetOngoingRequests.
   - name: MODELS_CONFIG
-    value: '[{"id":"glm-4-7b-flash","source":"hf:zai-org/GLM-4.7-Flash","vramRequired":20,"maxModelLen":8192,"alwaysActive":false,"minReplicas":0,"maxReplicas":2,"targetOngoingRequests":8,"capacityType":"spot","maxPricePerGPU":0.15},{"id":"qwen3-coder-30b","source":"hf:Qwen/Qwen3-Coder-30B-A3B-Instruct","vramRequired":18,"maxModelLen":8192,"alwaysActive":false,"minReplicas":0,"maxReplicas":2,"targetOngoingRequests":8,"capacityType":"spot","maxPricePerGPU":0.15}]'
-  # Provider credentials — reuse the same secret provisioner uses (created by Ansible)
-  - name: VASTAI_API_KEY
-    valueFrom:
-      secretKeyRef:
-        name: provider-credentials
-        key: vastai-api-key
-  - name: VERDA_CLIENT_ID
-    valueFrom:
-      secretKeyRef:
-        name: provider-credentials
-        key: verda-client-id
-  - name: VERDA_CLIENT_SECRET
-    valueFrom:
-      secretKeyRef:
-        name: provider-credentials
-        key: verda-client-secret
-  # NodeClaim namespace for K8s client
-  - name: CLAIM_NAMESPACE
-    value: "gpu-workloads"
-  # Ray head GCS address — external workers join via: ray start --address=<this>
-  # Populated by Ansible from utility-server IP + GCS NodePort 31637
-  - name: RAY_HEAD_GCS_ADDRESS
-    valueFrom:
-      configMapKeyRef:
-        name: ray-config
-        key: ray-head-address
-  # Full-node secrets (optional — only needed if any model uses nodeType: "full-node")
-  - name: NETBIRD_SETUP_KEY
-    valueFrom:
-      secretKeyRef:
-        name: provider-credentials
-        key: netbird-setup-key
-        optional: true
-  - name: K8S_JOIN_URL
-    valueFrom:
-      secretKeyRef:
-        name: provider-credentials
-        key: k8s-join-url
-        optional: true
-  - name: K8S_JOIN_TOKEN
-    valueFrom:
-      secretKeyRef:
-        name: provider-credentials
-        key: k8s-join-token
-        optional: true
+    value: '[{"id":"glm-4-7b-flash","source":"hf:zai-org/GLM-4.7-Flash","vramRequired":20,"maxModelLen":8192,"alwaysActive":false,"minReplicas":0,"maxReplicas":2,"targetOngoingRequests":8},{"id":"qwen3-coder-30b","source":"hf:Qwen/Qwen3-Coder-30B-A3B-Instruct","vramRequired":18,"maxModelLen":8192,"alwaysActive":false,"minReplicas":0,"maxReplicas":2,"targetOngoingRequests":8}]'

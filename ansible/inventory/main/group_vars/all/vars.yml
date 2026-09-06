@@ -1,0 +1,31 @@
+---
+# Plain variables that reference encrypted vault variables
+# Actual secrets are in vault.yml (encrypted)
+
+# Netbird VPN (setup keys are per-group, in k3s_server/vault.yml and gpu_nodes/vault.yml)
+netbird_management_url: "https://api.netbird.io"  # Or self-hosted URL
+
+# Common packages for all nodes
+packages_common:
+  - curl
+  - wget
+  - git
+  - vim
+  - htop
+  - net-tools
+  - jq
+  - python3-pip
+  - python3-kubernetes  # Required for Ansible k8s module
+
+# Kernel modules required for K8s networking (all nodes)
+kernel_modules:
+  - br_netfilter
+  - overlay
+
+# Base sysctl required for K8s networking (all nodes)
+# Group-specific settings (sysctl_settings_server, sysctl_settings_gpu) are merged in by base role
+sysctl_settings:
+  net.ipv4.ip_forward: 1
+  net.bridge.bridge-nf-call-iptables: 1
+  net.bridge.bridge-nf-call-ip6tables: 1
+  net.ipv4.conf.all.forwarding: 1

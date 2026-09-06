@@ -151,7 +151,7 @@
       data:
         api-key: "{{ gpu_api_secret | b64encode }}"
 
-- name: Create GHCR pull secret for gpu-workloads (provisioner)
+- name: Create GHCR pull secret for gpu-workloads
   kubernetes.core.k8s:
     state: present
     definition:
@@ -170,37 +170,6 @@
           username: munhq
           password: "{{ vault_ghcr_pull_token }}"
           auth: "{{ ('munhq:' + vault_ghcr_pull_token) | b64encode }}"
-
-- name: Create provisioner ray head config
-  kubernetes.core.k8s:
-    state: present
-    definition:
-      apiVersion: v1
-      kind: ConfigMap
-      metadata:
-        name: ray-config
-        namespace: gpu-workloads
-      data:
-        ray-head-address: "{{ hostvars['utility-server']['ansible_host'] }}:31637"
-        redis-url: "dragonfly.gpu-workloads.svc.cluster.local:6379"
-
-- name: Create provisioner provider credentials
-  kubernetes.core.k8s:
-    state: present
-    definition:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: provider-credentials
-        namespace: gpu-workloads
-      type: Opaque
-      data:
-        vastai-api-key: "{{ vault_vastai_api_key | b64encode }}"
-        verda-client-id: "{{ vault_verda_client_id | b64encode }}"
-        verda-client-secret: "{{ vault_verda_client_secret | b64encode }}"
-        netbird-setup-key: "{{ vault_gpu_netbird_setup_key | b64encode }}"
-        k8s-join-url: "{{ k3s_server_url | b64encode }}"
-        k8s-join-token: "{{ k3s_token | b64encode }}"
 
 - name: Apply ApplicationSets bootstrap (auto-syncs from git)
   kubernetes.core.k8s:
@@ -221,11 +190,6 @@
           path: ansible/argocd/applicationsets
           directory:
             recurse: false
-            # inference_path selects which inference path is deployed:
-            #   both     — Ray/KubeRay and provisioner side by side (default)
-            #   ray      — KubeRay + RayCluster only; provisioner is not applied
-            #   provisioner — provisioner only; KubeRay and RayCluster are not applied
-            exclude: "{{ inference_path_exclude[inference_path] }}"
         destination:
           server: https://kubernetes.default.svc
           namespace: "{{ argocd_namespace }}"

@@ -1,11 +1,21 @@
 # kubernetes_gpu
 
-kubernetes_gpu deploys an LLM inference API on your own GPUs. The API service itself lives in [munhq/gpu-api-ray](https://github.com/munhq/gpu-api-ray); this repo is the Kubernetes setup that deploys it. Submit a job over HTTP and fetch the result. A dashboard, per-GPU metrics and autoscaling are included. One variable selects where the GPUs come from.
+kubernetes_gpu deploys an LLM inference API on your own GPUs. The API service itself lives in [munhq/gpu-api-ray](https://github.com/munhq/gpu-api-ray); this repo is the Kubernetes setup that deploys it. Submit a job over HTTP and fetch the result. A dashboard, per-GPU metrics and autoscaling are included.
+
+Put your hosts in `ansible/inventory/main/hosts`, copy
+`group_vars/all/vault.yml.example` to `vault.yml`, fill it in and encrypt it.
+Then, from `ansible/`:
 
 ```bash
-ansible-playbook ansible/plays/infrastructure.yml     # bare metal / cloud hosts → K3s + NVIDIA runtime
-ansible-playbook ansible/plays/platform.yml           # cluster services
-ansible-playbook ansible/plays/argocd.yml             # everything else, via GitOps
+cd ansible
+ansible-playbook plays/all.yml --vault-password-file .vault_pass
+```
+
+`all.yml` imports the two stages, and either runs on its own:
+
+```bash
+ansible-playbook plays/infrastructure.yml   # hosts → K3s + NVIDIA runtime + Netbird
+ansible-playbook plays/platform.yml         # cluster services, then ArgoCD takes over
 ```
 
 Then:
@@ -20,30 +30,14 @@ curl http://<host>:8000/v1/batches/{job_id} -H "X-API-Key: $KEY"
 
 Jobs run against a model that is already resident in GPU memory — no queue and no cold start. Results persist in Dragonfly for 7 days.
 
-## Execution paths
-
-```bash
-ansible-playbook ansible/plays/argocd.yml -e inference_path=provisioner
-```
-
-| `inference_path` | GPUs come from | Shape |
-|---|---|---|
-| `ray` | Nodes you already own, joined to the cluster | KubeRay operator + RayCluster hold vLLM warm in-cluster |
-| `provisioner` | Bought on demand from seven providers — AWS, Azure, GCP, RunPod, Vast.ai, TensorDock, Verda | Each GPU runs an agent and vLLM directly. No K3s on the node, no Ray. Scales to zero |
-| `both` *(default)* | Both at once | For comparing them side by side |
-
-It works by setting `directory.exclude` on the ArgoCD ApplicationSets bootstrap, so the path you did not pick is never rendered. Switching later is a re-run — ArgoCD prunes what left the set.
-
-## What the three playbooks install
+## What the playbooks install
 
 - **An OpenAI-shaped batch API** with API-key auth, on port 8000, with a dashboard UI.
 - **A warm vLLM cluster** — the model stays loaded, so submitted work starts immediately.
 - **Per-GPU metrics** — DCGM exporter gives memory, utilisation and temperature per card; the API exposes 10 Prometheus metrics of its own; Grafana dashboards ship with it.
-- **Autoscaling** — KEDA on the Ray path, provisioner buying spot capacity on the other.
-- **GitOps** — ArgoCD with an app-of-apps and 13 ApplicationSets. The cluster converges on the repo.
+- **Autoscaling** — Ray Serve holds each model between `minReplicas` and `maxReplicas` and scales it on `targetOngoingRequests`.
+- **GitOps** — ArgoCD with an app-of-apps and 11 ApplicationSets. The cluster converges on the repo.
 - **A private overlay** — all K3s traffic runs over a WireGuard mesh, so nodes can sit in different clouds.
-
-The GPU autoscaler is a separate project: **[munhq/provisioner](https://github.com/munhq/provisioner)**.
 
 ## Architecture
 
@@ -51,7 +45,7 @@ The GPU autoscaler is a separate project: **[munhq/provisioner](https://github.c
 - **GPU workers**: 2x RunPod instances, 2x RTX 5060 Ti each (4 GPUs total)
 - **Networking**: Netbird VPN overlay — all K3s traffic goes through encrypted WireGuard tunnel
 - **Model**: Qwen/Qwen2.5-0.5B-Instruct, kept loaded in GPU memory
-- **GitOps**: ArgoCD with App of Apps pattern, 13 ApplicationSets
+- **GitOps**: ArgoCD with App of Apps pattern, 11 ApplicationSets
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams.
 
@@ -62,28 +56,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams.
 | GPU API | Go REST API — auth, Prometheus metrics, sends jobs to Ray Serve | [munhq/gpu-api-ray](https://github.com/munhq/gpu-api-ray) |
 | RayService | Persistent vLLM cluster via KubeRay operator | `ansible/argocd/charts/raycluster/` |
 | Dragonfly | Job persistence (DB 1) + Ray GCS fault tolerance (DB 0) | `ansible/argocd/charts/dragonfly/` |
-| provisioner | GPU node autoscaler — provisions GPU workers from spot providers, drains them when idle | `ansible/argocd/charts/provisioner/` |
 | Ansible | Infrastructure provisioning — base, VPN, NVIDIA, K3s, ArgoCD | `ansible/roles/` |
 | Monitoring | Prometheus, Grafana, DCGM exporter, node-exporter | Deployed via ArgoCD |
-
-## GPU autoscaling with provisioner
-
-`provisioner` is deployed as part of this platform through ArgoCD. It watches for pending GPU
-workloads, searches the configured providers for the cheapest offer that meets the requirement,
-provisions the instance, waits for it to serve, and destroys it when demand goes.
-
-```
-ansible/argocd/applicationsets/provisioner.yaml   ApplicationSet
-ansible/argocd/charts/provisioner/                Helm chart — CRDs, RBAC, controller Deployment
-ansible/argocd/config/provisioner/values.yaml     enabled providers and the node pools
-```
-
-Enable a provider in `config/provisioner/values.yaml` and supply its credentials through
-`existingSecret`. The chart renders two CRDs (`NodePool`, `NodeClaim`), a ClusterRole and
-binding, a ServiceAccount and the controller Deployment.
-
-The controller source and a standalone chart live in a separate repository:
-**https://github.com/munhq/provisioner**
 
 ## Docs
 
@@ -96,11 +70,11 @@ The controller source and a standalone chart live in a separate repository:
 
 ```
 ansible/
-  plays/                  # infrastructure.yml → platform.yml → argocd.yml
+  plays/                  # all.yml → infrastructure.yml → platform.yml
   roles/                  # base, netbird, nvidia_runtime, k3s_server, k3s_agent, argocd
-  inventory/              # hosts, vault-encrypted secrets
+  inventory/              # hosts + group_vars; vault.yml.example to fill in
   argocd/
-    applicationsets/      # 13 ArgoCD ApplicationSet manifests
+    applicationsets/      # 11 ArgoCD ApplicationSet manifests
     charts/               # Custom Helm charts (gpu-api, raycluster, dragonfly)
     config/               # Helm values overrides per app
 ```
