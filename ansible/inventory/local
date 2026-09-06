@@ -1,0 +1,15 @@
+# Local Test Environment
+# Single node: K3s server + agent (control plane + worker with GPU)
+
+[k3s_server]
+localhost ansible_connection=local
+
+[k3s_agents]
+localhost ansible_connection=local  # Dual role: control plane also runs workloads
+
+[k3s_cluster:children]
+k3s_server
+k3s_agents
+
+[k3s_cluster:vars]
+ansible_python_interpreter=/usr/bin/python3

@@ -1,0 +1,34 @@
+---
+# Variables for gpu_nodes group (GPU worker nodes)
+
+# Netbird
+netbird_setup_key: "{{ vault_netbird_setup_key }}"
+
+k3s_version: "v1.35.0+k3s3"
+
+k3s_kubelet_args:
+  - "max-pods=110"
+
+# GPU-specific sysctl (merged with base sysctl_settings)
+sysctl_settings_gpu:
+  vm.overcommit_memory: 1
+  vm.panic_on_oom: 0
+  kernel.shmmax: 68719476736
+  kernel.shmall: 4294967296
+
+# memlock must be unlimited for CUDA
+ulimit_memlock: unlimited
+
+# NVIDIA persistence mode
+nvidia_persistence_mode: true
+
+# Node labels for GPU workloads
+k3s_node_labels:
+  node-role.kubernetes.io/worker: "true"
+  workload-type: "gpu-compute"
+  nvidia.com/gpu.present: "true"
+
+# TAINT to prevent non-GPU workloads from running on expensive GPU nodes
+# Only pods with matching toleration can schedule here
+k3s_node_taints:
+  - "nvidia.com/gpu:NoSchedule"

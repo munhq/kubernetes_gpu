@@ -22,7 +22,7 @@ User → GPU API (Go, port 8000)
 ## Prerequisites
 
 - K3s cluster with GPU nodes (deployed via `ansible-playbook plays/platform.yml`)
-- ArgoCD installed and syncing (deployed via `ansible-playbook plays/argocd.yml`)
+- ArgoCD installed and syncing (deployed via `ansible-playbook plays/platform.yml --tags argocd`)
 - All ApplicationSets healthy: `kubectl get applications -n argocd`
 
 ## Deploy

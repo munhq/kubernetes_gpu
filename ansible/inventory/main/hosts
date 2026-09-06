@@ -1,0 +1,21 @@
+# Your cluster. Replace every host, address and key path below.
+#
+# k3s_server holds the control plane: ArgoCD, the GPU API, Dragonfly and
+# monitoring. It does not need a GPU.
+#
+# gpu_nodes hold the GPUs and join the cluster as agents. A rented instance
+# often listens for SSH on a port other than 22, so set ansible_port.
+
+[k3s_server]
+control-plane ansible_host=203.0.113.10 ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_cluster ansible_ssh_common_args='-o IdentitiesOnly=yes'
+
+[gpu_nodes]
+gpu-node-01 ansible_host=203.0.113.21 ansible_port=22 ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_gpu
+gpu-node-02 ansible_host=203.0.113.22 ansible_port=22 ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_gpu
+
+[k3s_cluster:children]
+k3s_server
+gpu_nodes
+
+[all:vars]
+ansible_python_interpreter=/usr/bin/python3

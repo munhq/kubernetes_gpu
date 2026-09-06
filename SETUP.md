@@ -115,7 +115,7 @@ gpu-node-01 and gpu-node-02 should each report 2 GPUs.
 ### Applications (via ArgoCD)
 
 ```bash
-ansible-playbook plays/argocd.yml --vault-password-file .vault_pass
+ansible-playbook plays/platform.yml --tags argocd --vault-password-file .vault_pass
 ```
 
 ~15 minutes (image pulls). This deploys ApplicationSets which create all the apps: KubeRay operator, NFD, NVIDIA device plugin, DCGM exporter, Prometheus + Grafana, metrics-server, Dragonfly, RayCluster, GPU API.

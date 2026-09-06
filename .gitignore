@@ -8,4 +8,7 @@ __pycache__/
 .idea/
 CLAUDE.md
 gpu-api/gpu-api
-provisioner/controller
+
+# Local commit guard. Not committed: it is machine tooling, and the list it
+# reads deliberately lives outside every repository.
+.githooks/

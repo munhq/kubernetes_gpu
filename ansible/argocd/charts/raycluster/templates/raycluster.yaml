@@ -127,8 +127,8 @@ spec:
               type: DirectoryOrCreate
 ---
 {{- if .Values.gcsNodePort.enabled }}
-# Expose Ray head GCS port for external ray-workers (cloud instances provisioned
-# by provisioner) to join the cluster without VPN. They connect via:
+# Expose the Ray head GCS port so an external ray-worker can join the cluster
+# without the VPN. The worker connects with:
 #   ray start --address=<publicIP>:{{ .Values.gcsNodePort.port }}
 apiVersion: v1
 kind: Service

@@ -1,0 +1,22 @@
+# Copy this file to vault.yml, fill in your own values, then encrypt it:
+#
+#   cp vault.yml.example vault.yml
+#   ansible-vault encrypt vault.yml --vault-password-file ../../../../.vault_pass
+#
+# Never commit an unencrypted vault.yml. The .gitignore covers .vault_pass only,
+# so the encryption step is yours to remember.
+
+# Netbird VPN setup key. One per group is also supported — put it in
+# k3s_server/vault.yml and gpu_nodes/vault.yml instead of here.
+vault_netbird_setup_key: ""
+
+# API key clients send as the X-API-Key header to the GPU API.
+vault_gpu_api_secret: ""
+
+# GitHub token with read:packages, so the cluster can pull images from GHCR.
+vault_ghcr_pull_token: ""
+vault_ghcr_token: ""
+
+# ArgoCD GitHub App, if you point ArgoCD at a private repository.
+# Leave the key empty when the repository is public.
+vault_github_app_private_key: ""
