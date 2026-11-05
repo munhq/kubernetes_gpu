@@ -5,5 +5,16 @@
   "server": {
     "url": "https://desk.munhq.com",
     "tokenEnv": "DESK_TOKEN"
-  }
+  },
+  "validation": [
+    {
+      "name": "ansible",
+      "command": "rc=0; for p in plays/*.yml; do ansible-playbook --syntax-check -i localhost, \"$p\" || rc=1; done; exit $rc",
+      "paths": [
+        "ansible/**"
+      ],
+      "stage": "land",
+      "cwd": "ansible"
+    }
+  ]
 }
