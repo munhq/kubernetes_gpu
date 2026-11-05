@@ -13,7 +13,7 @@
       "paths": [
         "ansible/**"
       ],
-      "stage": "land",
+      "stage": "main",
       "cwd": "ansible"
     }
   ]
