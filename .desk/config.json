@@ -8,6 +8,14 @@
   },
   "validation": [
     {
+      "name": "charts",
+      "command": "rc=0; for c in ansible/argocd/charts/*/; do helm lint \"$c\" || rc=1; helm template \"$(basename \"$c\")\" \"$c\" >/dev/null || rc=1; done; exit $rc",
+      "paths": [
+        "ansible/argocd/charts/**"
+      ],
+      "stage": "land"
+    },
+    {
       "name": "ansible",
       "command": "rc=0; for p in plays/*.yml; do ansible-playbook --syntax-check -i localhost, \"$p\" || rc=1; done; exit $rc",
       "paths": [
